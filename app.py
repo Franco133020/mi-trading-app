@@ -6,7 +6,7 @@ import numpy as np
 
 # Configuración de la página Streamlit
 st.set_page_config(
-    page_title="Sistema Scoring + Markoni + Oracle",
+    page_title="Sistema Scoring",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -43,7 +43,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📊 Sistema Scoring + Hyper Markoni + Oracle Oscillator")
+# Título Principal Reducido
+st.markdown("""
+    <h2 style='text-align: left; color: #ffffff; margin-bottom: 20px;'>
+        📊 Sistema Scoring
+    </h2>
+""", unsafe_allow_html=True)
 
 st.sidebar.header("⚙️ Configuración del Activo")
 
@@ -66,7 +71,7 @@ if ticker_custom.strip():
     tv_symbol = ticker_custom.strip().upper()
     yf_symbol = tv_symbol.split(":")[-1] + ".BA" if "BCBA" in tv_symbol else tv_symbol.split(":")[-1]
 
-# Selector de Temporalidades (Mapeo TV vs YFinance)
+# Selector de Temporalidades
 timeframe_map = {
     "1 Minuto": {"tv": "1", "yf_interval": "1m", "yf_period": "7d"},
     "5 Minutos": {"tv": "5", "yf_interval": "5m", "yf_period": "30d"},
@@ -196,7 +201,7 @@ def calcular_matriz_pine(symbol_yf, interval, period):
 
 res = calcular_matriz_pine(yf_symbol, yf_interval, yf_period)
 
-# RENDER DEL GRÁFICO (SINCRONIZADO CON LA TEMPORALIDAD)
+# RENDER DEL GRÁFICO
 template_tv = """
 <div class="tradingview-widget-container" style="height:100%;width:100%">
   <div id="tradingview_chart" style="height:550px;width:100%"></div>
