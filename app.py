@@ -67,7 +67,7 @@ if ticker_custom.strip():
     tv_symbol = ticker_custom.strip().upper()
     yf_symbol = tv_symbol.split(":")[-1] + ".BA" if "BCBA" in tv_symbol else tv_symbol.split(":")[-1]
 
-# CÁLCULOS MATEMÁTICOS DE PINE SCRIPT
+# CÁLCULOS MATEMÁTICOS DE PINE SCRIPT EN PYTHON
 @st.cache_data(ttl=300)
 def calcular_matriz_pine(symbol_yf):
     try:
@@ -90,7 +90,8 @@ def calcular_matriz_pine(symbol_yf):
         delta = close.diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rsi = 100 - (100 / (1 + (gain / loss)))
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
         
         tr = pd.concat([high - low, (high - close.shift(1)).abs(), (low - close.shift(1)).abs()], axis=1).max(axis=1)
         atr = tr.rolling(window=14).mean()
@@ -168,22 +169,4 @@ def calcular_matriz_pine(symbol_yf):
             "rsi": rsi_l, "adx": adx_l, "wt1": wt1_l, "wt2": wt2_l,
             "patron": patron_nombre, "desc_patron": desc_patron, "patron_pts": patron_pts,
             "ma1": ma1_l, "ma2": ma2_l, "ma3": ma3_l, "ma4": ma4_l, "ma5": ma5_l,
-            "macd": macd_l, "sig": sig_l, "bbu": bbu_l, "bbl": bbl_l, "sl": sl, "tp": tp,
-            "is_trending": is_trending
-        }
-    except Exception:
-        return None
-
-res = calcular_matriz_pine(yf_symbol)
-
-# RENDER DEL GRÁFICO
-tradingview_html = f"""
-<div class="tradingview-widget-container" style="height:100%;width:100%">
-  <div id="tradingview_chart" style="height:550px;width:100%"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-  <script type="text/javascript">
-    new TradingView.widget({{
-      "autosize": true,
-      "symbol": "{tv_symbol}",
-      "interval": "60",
-      "timezone": "America/Argentina/Jujuy",
+            "macd": macd_l,
