@@ -4,12 +4,12 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
-# Configuración de la página Streamlit
+# Configuración de la página
 st.set_page_config(
-    page_title="Sistema Scoring",
+    page_title="Sistema Scoring - TradingView Style",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # Estilos CSS de alto contraste tipo TradingView
@@ -18,17 +18,50 @@ st.markdown("""
     .stApp { background-color: #0e1117; color: #d1d4dc; }
     div[data-testid="stSidebar"] { background-color: #161922; }
     
+    /* Estilos de la Lista de Seguimiento (Watchlist) a la derecha */
+    .watchlist-box {
+        background-color: #131722;
+        border: 1px solid #2a2e39;
+        border-radius: 6px;
+        padding: 10px;
+        height: 600px;
+        overflow-y: auto;
+    }
+    .watchlist-header {
+        font-weight: bold;
+        color: #8f93a0;
+        font-size: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #2a2e39;
+        margin-bottom: 10px;
+    }
+    .watchlist-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-bottom: 4px;
+        transition: background 0.2s;
+    }
+    .watchlist-item:hover { background-color: #2a2e39; }
+    .item-selected { background-color: #1e222d; border-left: 4px solid #2962ff; }
+    .item-ticker { font-weight: bold; color: #ffffff; font-size: 13px; }
+    .item-cat { font-size: 10px; color: #787b86; }
+    
+    /* Tabla Matricial */
     .matriz-table {
         width: 100%;
         border-collapse: collapse;
         font-family: Arial, sans-serif;
-        font-size: 13px;
+        font-size: 12px;
         color: white;
         margin-top: 15px;
     }
     .matriz-table th, .matriz-table td {
         border: 1px solid #2a2e39;
-        padding: 8px;
+        padding: 6px;
         text-align: center;
     }
     .matriz-header { background-color: #1e222d; font-weight: bold; }
@@ -43,188 +76,84 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Título Principal
-st.markdown("""
-    <h2 style='text-align: left; color: #ffffff; margin-bottom: 20px;'>
-        📊 Sistema Scoring
-    </h2>
-""", unsafe_allow_html=True)
-
 # ==========================================
-# INICIALIZACIÓN DE LA LISTA DE ACTIVOS (SESSION STATE)
+# INICIALIZACIÓN DE LA BASE DE ACTIVOS
 # ==========================================
 if "activos_dict" not in st.session_state:
     st.session_state.activos_dict = {
-        # --- ÍNDICES ---
-        "S&P 500 Index (SPX)": {"tv": "SP:SPX", "yf": "^GSPC", "categoria": "Indices"},
-        "S&P 500 Equal Weight (RSP)": {"tv": "AMEX:RSP", "yf": "RSP", "categoria": "Indices"},
+        # ÍNDICES
+        "SPX": {"name": "S&P 500 Index", "tv": "SP:SPX", "yf": "^GSPC", "cat": "Indices"},
+        "RSP": {"name": "S&P 500 Equal Weight", "tv": "AMEX:RSP", "yf": "RSP", "cat": "Indices"},
+        
+        # SECTORES
+        "IBB": {"name": "Biotechnology ETF", "tv": "NASDAQ:IBB", "yf": "IBB", "cat": "Sectores"},
+        "IGV": {"name": "Software ETF", "tv": "BATS:IGV", "yf": "IGV", "cat": "Sectores"},
+        "IHAK": {"name": "Cybersecurity ETF", "tv": "NYSEARCA:IHAK", "yf": "IHAK", "cat": "Sectores"},
+        "CIBR": {"name": "Cybersecurity ETF", "tv": "NASDAQ:CIBR", "yf": "CIBR", "cat": "Sectores"},
+        "ITA": {"name": "U.S. Aerospace & Defense", "tv": "CBOE:ITA", "yf": "ITA", "cat": "Sectores"},
+        "IYZ": {"name": "Telecom ETF", "tv": "NYSEARCA:IYZ", "yf": "IYZ", "cat": "Sectores"},
+        "SOXX": {"name": "Semiconductor ETF", "tv": "NASDAQ:SOXX", "yf": "SOXX", "cat": "Sectores"},
+        "XLB": {"name": "Materials Select Sector", "tv": "AMEX:XLB", "yf": "XLB", "cat": "Sectores"},
+        "XLC": {"name": "Communication Services", "tv": "AMEX:XLC", "yf": "XLC", "cat": "Sectores"},
+        "XLE": {"name": "Energy Select Sector", "tv": "AMEX:XLE", "yf": "XLE", "cat": "Sectores"},
+        "XLF": {"name": "Financial Select Sector", "tv": "AMEX:XLF", "yf": "XLF", "cat": "Sectores"},
+        "XLI": {"name": "Industrial Select Sector", "tv": "AMEX:XLI", "yf": "XLI", "cat": "Sectores"},
+        "XLK": {"name": "Technology Select Sector", "tv": "AMEX:XLK", "yf": "XLK", "cat": "Sectores"},
+        
+        # INTERNACIONAL
+        "QQQ": {"name": "Nasdaq 100", "tv": "NASDAQ:QQQ", "yf": "QQQ", "cat": "Internacional"},
+        "AAPL": {"name": "Apple Inc.", "tv": "NASDAQ:AAPL", "yf": "AAPL", "cat": "Internacional"},
+        "AMZN": {"name": "Amazon.com", "tv": "NASDAQ:AMZN", "yf": "AMZN", "cat": "Internacional"},
+        "GOOGL": {"name": "Alphabet / Google", "tv": "NASDAQ:GOOGL", "yf": "GOOGL", "cat": "Internacional"},
+        "MSFT": {"name": "Microsoft", "tv": "NASDAQ:MSFT", "yf": "MSFT", "cat": "Internacional"},
+        "META": {"name": "Meta Platforms", "tv": "NASDAQ:META", "yf": "META", "cat": "Internacional"},
+        "TSLA": {"name": "Tesla", "tv": "NASDAQ:TSLA", "yf": "TSLA", "cat": "Internacional"},
+        "NVDA": {"name": "NVIDIA", "tv": "NASDAQ:NVDA", "yf": "NVDA", "cat": "Internacional"},
+        "INTC": {"name": "Intel", "tv": "NASDAQ:INTC", "yf": "INTC", "cat": "Internacional"},
+        "AVGO": {"name": "Broadcom", "tv": "NASDAQ:AVGO", "yf": "AVGO", "cat": "Internacional"},
+        "TSM": {"name": "Taiwan Semiconductor", "tv": "NYSE:TSM", "yf": "TSM", "cat": "Internacional"},
+        "AMD": {"name": "Advanced Micro Devices", "tv": "NASDAQ:AMD", "yf": "AMD", "cat": "Internacional"},
+        "ORCL": {"name": "Oracle", "tv": "NYSE:ORCL", "yf": "ORCL", "cat": "Internacional"},
+        "PLTR": {"name": "Palantir", "tv": "NYSE:PLTR", "yf": "PLTR", "cat": "Internacional"},
+        "NFLX": {"name": "Netflix", "tv": "NASDAQ:NFLX", "yf": "NFLX", "cat": "Internacional"},
+        "MELI": {"name": "MercadoLibre", "tv": "NASDAQ:MELI", "yf": "MELI", "cat": "Internacional"},
+        "BTCUSDT": {"name": "Bitcoin / USDT", "tv": "BINANCE:BTCUSDT", "yf": "BTC-USD", "cat": "Internacional"},
+        "ETHUSDT": {"name": "Ethereum / USDT", "tv": "BINANCE:ETHUSDT", "yf": "ETH-USD", "cat": "Internacional"},
 
-        # --- SECTORES ---
-        "Biotechnology ETF (IBB)": {"tv": "NASDAQ:IBB", "yf": "IBB", "categoria": "Sectores"},
-        "Software ETF (IGV)": {"tv": "BATS:IGV", "yf": "IGV", "categoria": "Sectores"},
-        "Cybersecurity ETF (IHAK)": {"tv": "NYSEARCA:IHAK", "yf": "IHAK", "categoria": "Sectores"},
-        "Cybersecurity ETF (CIBR)": {"tv": "NASDAQ:CIBR", "yf": "CIBR", "categoria": "Sectores"},
-        "U.S. Aerospace & Defense (ITA)": {"tv": "CBOE:ITA", "yf": "ITA", "categoria": "Sectores"},
-        "Telecom ETF (IYZ)": {"tv": "NYSEARCA:IYZ", "yf": "IYZ", "categoria": "Sectores"},
-        "Semiconductor ETF (SOXX)": {"tv": "NASDAQ:SOXX", "yf": "SOXX", "categoria": "Sectores"},
-        "Materials Select Sector (XLB)": {"tv": "AMEX:XLB", "yf": "XLB", "categoria": "Sectores"},
-        "Communication Services (XLC)": {"tv": "AMEX:XLC", "yf": "XLC", "categoria": "Sectores"},
-        "Energy Select Sector (XLE)": {"tv": "AMEX:XLE", "yf": "XLE", "categoria": "Sectores"},
-        "Financial Select Sector (XLF)": {"tv": "AMEX:XLF", "yf": "XLF", "categoria": "Sectores"},
-        "Industrial Select Sector (XLI)": {"tv": "AMEX:XLI", "yf": "XLI", "categoria": "Sectores"},
-        "Technology Select Sector (XLK)": {"tv": "AMEX:XLK", "yf": "XLK", "categoria": "Sectores"},
-
-        # --- INTERNACIONAL ---
-        "Nasdaq 100 (QQQ)": {"tv": "NASDAQ:QQQ", "yf": "QQQ", "categoria": "Internacional"},
-        "Apple Inc. (AAPL)": {"tv": "NASDAQ:AAPL", "yf": "AAPL", "categoria": "Internacional"},
-        "Amazon.com (AMZN)": {"tv": "NASDAQ:AMZN", "yf": "AMZN", "categoria": "Internacional"},
-        "Alphabet / Google (GOOGL)": {"tv": "NASDAQ:GOOGL", "yf": "GOOGL", "categoria": "Internacional"},
-        "Microsoft (MSFT)": {"tv": "NASDAQ:MSFT", "yf": "MSFT", "categoria": "Internacional"},
-        "Meta Platforms (META)": {"tv": "NASDAQ:META", "yf": "META", "categoria": "Internacional"},
-        "Tesla (TSLA)": {"tv": "NASDAQ:TSLA", "yf": "TSLA", "categoria": "Internacional"},
-        "NVIDIA (NVDA)": {"tv": "NASDAQ:NVDA", "yf": "NVDA", "categoria": "Internacional"},
-        "Intel (INTC)": {"tv": "NASDAQ:INTC", "yf": "INTC", "categoria": "Internacional"},
-        "Broadcom (AVGO)": {"tv": "NASDAQ:AVGO", "yf": "AVGO", "categoria": "Internacional"},
-        "ASML Holding (ASML)": {"tv": "NASDAQ:ASML", "yf": "ASML", "categoria": "Internacional"},
-        "Taiwan Semiconductor (TSM)": {"tv": "NYSE:TSM", "yf": "TSM", "categoria": "Internacional"},
-        "Advanced Micro Devices (AMD)": {"tv": "NASDAQ:AMD", "yf": "AMD", "categoria": "Internacional"},
-        "Marvell Technology (MRVL)": {"tv": "NASDAQ:MRVL", "yf": "MRVL", "categoria": "Internacional"},
-        "Arm Holdings (ARM)": {"tv": "NASDAQ:ARM", "yf": "ARM", "categoria": "Internacional"},
-        "Micron Technology (MU)": {"tv": "NASDAQ:MU", "yf": "MU", "categoria": "Internacional"},
-        "Lam Research (LRCX)": {"tv": "NASDAQ:LRCX", "yf": "LRCX", "categoria": "Internacional"},
-        "Oracle (ORCL)": {"tv": "NYSE:ORCL", "yf": "ORCL", "categoria": "Internacional"},
-        "IBM": {"tv": "NYSE:IBM", "yf": "IBM", "categoria": "Internacional"},
-        "Spotify (SPOT)": {"tv": "NYSE:SPOT", "yf": "SPOT", "categoria": "Internacional"},
-        "Salesforce (CRM)": {"tv": "NYSE:CRM", "yf": "CRM", "categoria": "Internacional"},
-        "Accenture (ACN)": {"tv": "NYSE:ACN", "yf": "ACN", "categoria": "Internacional"},
-        "Adobe (ADBE)": {"tv": "NASDAQ:ADBE", "yf": "ADBE", "categoria": "Internacional"},
-        "Palantir (PLTR)": {"tv": "NYSE:PLTR", "yf": "PLTR", "categoria": "Internacional"},
-        "Netflix (NFLX)": {"tv": "NASDAQ:NFLX", "yf": "NFLX", "categoria": "Internacional"},
-        "Block / Square (SQ)": {"tv": "NYSE:SQ", "yf": "SQ", "categoria": "Internacional"},
-        "ADP": {"tv": "NASDAQ:ADP", "yf": "ADP", "categoria": "Internacional"},
-        "ServiceNow (NOW)": {"tv": "NYSE:NOW", "yf": "NOW", "categoria": "Internacional"},
-        "Globant (GLOB)": {"tv": "NYSE:GLOB", "yf": "GLOB", "categoria": "Internacional"},
-        "SAP SE": {"tv": "NYSE:SAP", "yf": "SAP", "categoria": "Internacional"},
-        "Palo Alto Networks (PANW)": {"tv": "NASDAQ:PANW", "yf": "PANW", "categoria": "Internacional"},
-        "CrowdStrike (CRWD)": {"tv": "NASDAQ:CRWD", "yf": "CRWD", "categoria": "Internacional"},
-        "Iris Energy (IREN)": {"tv": "NASDAQ:IREN", "yf": "IREN", "categoria": "Internacional"},
-        "General Electric (GE)": {"tv": "NYSE:GE", "yf": "GE", "categoria": "Internacional"},
-        "Berkshire Hathaway (BRK.B)": {"tv": "NYSE:BRK.B", "yf": "BRK-B", "categoria": "Internacional"},
-        "Goldman Sachs (GS)": {"tv": "NYSE:GS", "yf": "GS", "categoria": "Internacional"},
-        "JPMorgan Chase (JPM)": {"tv": "NYSE:JPM", "yf": "JPM", "categoria": "Internacional"},
-        "Robinhood (HOOD)": {"tv": "NASDAQ:HOOD", "yf": "HOOD", "categoria": "Internacional"},
-        "Visa (V)": {"tv": "NYSE:V", "yf": "V", "categoria": "Internacional"},
-        "Mastercard (MA)": {"tv": "NYSE:MA", "yf": "MA", "categoria": "Internacional"},
-        "MercadoLibre (MELI)": {"tv": "NASDAQ:MELI", "yf": "MELI", "categoria": "Internacional"},
-        "Walmart (WMT)": {"tv": "NYSE:WMT", "yf": "WMT", "categoria": "Internacional"},
-        "Target (TGT)": {"tv": "NYSE:TGT", "yf": "TGT", "categoria": "Internacional"},
-        "Caterpillar (CAT)": {"tv": "NYSE:CAT", "yf": "CAT", "categoria": "Internacional"},
-        "AST SpaceMobile (ASTS)": {"tv": "NASDAQ:ASTS", "yf": "ASTS", "categoria": "Internacional"},
-        "Ondas Holdings (ONDS)": {"tv": "NASDAQ:ONDS", "yf": "ONDS", "categoria": "Internacional"},
-        "Arista Networks (ANET)": {"tv": "NYSE:ANET", "yf": "ANET", "categoria": "Internacional"},
-        "Corning (GLW)": {"tv": "NYSE:GLW", "yf": "GLW", "categoria": "Internacional"},
-        "iShares Bitcoin Trust (IBIT)": {"tv": "NASDAQ:IBIT", "yf": "IBIT", "categoria": "Internacional"},
-        "MicroStrategy (MSTR)": {"tv": "NASDAQ:MSTR", "yf": "MSTR", "categoria": "Internacional"},
-        "Coinbase (COIN)": {"tv": "NASDAQ:COIN", "yf": "COIN", "categoria": "Internacional"},
-        "Riot Platforms (RIOT)": {"tv": "NASDAQ:RIOT", "yf": "RIOT", "categoria": "Internacional"},
-        "Hut 8 Mining (HUT)": {"tv": "NASDAQ:HUT", "yf": "HUT", "categoria": "Internacional"},
-        "Eli Lilly (LLY)": {"tv": "NYSE:LLY", "yf": "LLY", "categoria": "Internacional"},
-        "Novo Nordisk (NVO)": {"tv": "NYSE:NVO", "yf": "NVO", "categoria": "Internacional"},
-        "American Airlines (AAL)": {"tv": "NASDAQ:AAL", "yf": "AAL", "categoria": "Internacional"},
-        "Uber (UBER)": {"tv": "NYSE:UBER", "yf": "UBER", "categoria": "Internacional"},
-        "SPDR Gold Shares (GLD)": {"tv": "AMEX:GLD", "yf": "GLD", "categoria": "Internacional"},
-        "iShares Silver Trust (SLV)": {"tv": "AMEX:SLV", "yf": "SLV", "categoria": "Internacional"},
-        "Global X Copper Miners (COPX)": {"tv": "NYSEARCA:COPX", "yf": "COPX", "categoria": "Internacional"},
-        "Bitcoin / USDT": {"tv": "BINANCE:BTCUSDT", "yf": "BTC-USD", "categoria": "Internacional"},
-        "Ethereum / USDT": {"tv": "BINANCE:ETHUSDT", "yf": "ETH-USD", "categoria": "Internacional"},
-
-        # --- MERCADO ARGENTINO (BCBA) ---
-        "Índice Merval": {"tv": "BCBA:IMV", "yf": "^MERV", "categoria": "Mercado Argentino"},
-        "YPF S.A. (YPFD)": {"tv": "BCBA:YPFD", "yf": "YPFD.BA", "categoria": "Mercado Argentino"},
-        "Pampa Energía (PAMP)": {"tv": "BCBA:PAMP", "yf": "PAMP.BA", "categoria": "Mercado Argentino"},
-        "Grupo Supervielle (SUPV)": {"tv": "BCBA:SUPV", "yf": "SUPV.BA", "categoria": "Mercado Argentino"},
-        "Grupo Financiero Galicia (GGAL)": {"tv": "BCBA:GGAL", "yf": "GGAL.BA", "categoria": "Mercado Argentino"},
-        "Banco Macro (BMA)": {"tv": "BCBA:BMA", "yf": "BMA.BA", "categoria": "Mercado Argentino"},
-        "BBVA Argentina (BBAR)": {"tv": "BCBA:BBAR", "yf": "BBAR.BA", "categoria": "Mercado Argentino"},
-        "Central Puerto (CEPU)": {"tv": "BCBA:CEPU", "yf": "CEPU.BA", "categoria": "Mercado Argentino"},
-        "Transportadora de Gas del Sur (TGSU2)": {"tv": "BCBA:TGSU2", "yf": "TGSU2.BA", "categoria": "Mercado Argentino"},
-        "Ternium Argentina (TXAR)": {"tv": "BCBA:TXAR", "yf": "TXAR.BA", "categoria": "Mercado Argentino"},
-        "Aluar (ALUA)": {"tv": "BCBA:ALUA", "yf": "ALUA.BA", "categoria": "Mercado Argentino"},
-        "Loma Negra (LOMA)": {"tv": "BCBA:LOMA", "yf": "LOMA.BA", "categoria": "Mercado Argentino"},
-        "Sociedad Comercial del Plata (COME)": {"tv": "BCBA:COME", "yf": "COME.BA", "categoria": "Mercado Argentino"},
-        "Transener (TRAN)": {"tv": "BCBA:TRAN", "yf": "TRAN.BA", "categoria": "Mercado Argentino"},
-        "Cresud (CRES)": {"tv": "BCBA:CRES", "yf": "CRES.BA", "categoria": "Mercado Argentino"}
+        # MERCADO ARGENTINO (BCBA)
+        "MERVAL": {"name": "Índice Merval", "tv": "BCBA:IMV", "yf": "^MERV", "cat": "Mercado Argentino"},
+        "YPFD": {"name": "YPF S.A.", "tv": "BCBA:YPFD", "yf": "YPFD.BA", "cat": "Mercado Argentino"},
+        "PAMP": {"name": "Pampa Energía", "tv": "BCBA:PAMP", "yf": "PAMP.BA", "cat": "Mercado Argentino"},
+        "SUPV": {"name": "Grupo Supervielle", "tv": "BCBA:SUPV", "yf": "SUPV.BA", "cat": "Mercado Argentino"},
+        "GGAL": {"name": "Grupo Fin. Galicia", "tv": "BCBA:GGAL", "yf": "GGAL.BA", "cat": "Mercado Argentino"},
+        "BMA": {"name": "Banco Macro", "tv": "BCBA:BMA", "yf": "BMA.BA", "cat": "Mercado Argentino"},
+        "BBAR": {"name": "BBVA Argentina", "tv": "BCBA:BBAR", "yf": "BBAR.BA", "cat": "Mercado Argentino"},
+        "CEPU": {"name": "Central Puerto", "tv": "BCBA:CEPU", "yf": "CEPU.BA", "cat": "Mercado Argentino"},
+        "TGSU2": {"name": "Transp. Gas del Sur", "tv": "BCBA:TGSU2", "yf": "TGSU2.BA", "cat": "Mercado Argentino"},
+        "TXAR": {"name": "Ternium Argentina", "tv": "BCBA:TXAR", "yf": "TXAR.BA", "cat": "Mercado Argentino"},
+        "ALUA": {"name": "Aluar", "tv": "BCBA:ALUA", "yf": "ALUA.BA", "cat": "Mercado Argentino"},
+        "LOMA": {"name": "Loma Negra", "tv": "BCBA:LOMA", "yf": "LOMA.BA", "cat": "Mercado Argentino"},
+        "COME": {"name": "Soc. Comercial del Plata", "tv": "BCBA:COME", "yf": "COME.BA", "cat": "Mercado Argentino"}
     }
 
+keys_list = list(st.session_state.activos_dict.keys())
+
+if "idx_activo" not in st.session_state:
+    st.session_state.idx_activo = 0
+
 # ==========================================
-# SECCIÓN 1: CONFIGURACIÓN Y GESTIÓN DE ACTIVOS
+# PARÁMETROS DEL SCORING (BARRA LATERAL)
 # ==========================================
-st.sidebar.header("⚙️ Configuración del Activo")
+st.sidebar.header("⚙️ Configuración del Scoring")
 
-activos_disponibles = st.session_state.activos_dict
-
-# Filtro por Categoría / Sector
-filtrar_cat = st.sidebar.checkbox("Filtrar por Categoría / Sector", value=False)
-
-if filtrar_cat:
-    categorias_unicas = sorted(list(set(v["categoria"] for v in activos_disponibles.values())))
-    cat_sel = st.sidebar.selectbox("Seleccionar Categoría:", categorias_unicas)
-    activos_filtrados = {k: v for k, v in activos_disponibles.items() if v["categoria"] == cat_sel}
-else:
-    activos_filtrados = activos_disponibles
-
-lista_opciones = [f"[{v['categoria']}] {k}" if not filtrar_cat else k for k, v in activos_filtrados.items()]
-opcion_seleccionada = st.sidebar.selectbox("Seleccionar Activo:", lista_opciones)
-
-nombre_limpio = opcion_seleccionada.split("] ")[-1] if "]" in opcion_seleccionada else opcion_seleccionada
-tv_symbol = activos_disponibles[nombre_limpio]["tv"]
-yf_symbol = activos_disponibles[nombre_limpio]["yf"]
-
-# Agregar / Eliminar Activos
-with st.sidebar.expander("➕ / ➖ Gestionar Lista de Activos", expanded=False):
-    tab_add, tab_del = st.tabs(["Agregar Activo", "Eliminar Activo"])
-    
-    with tab_add:
-        new_name = st.text_input("Nombre / Ticker Visible:", placeholder="Ej: Meta (META)")
-        new_tv = st.text_input("Ticker TradingView:", placeholder="Ej: NASDAQ:META")
-        new_yf = st.text_input("Ticker Yahoo Finance:", placeholder="Ej: META")
-        new_cat = st.selectbox("Categoría / Sector:", ["Indices", "Sectores", "Internacional", "Mercado Argentino", "Otros"])
-        
-        if st.button("Guardar Nuevo Activo"):
-            if new_name.strip() and new_tv.strip() and new_yf.strip():
-                st.session_state.activos_dict[new_name.strip()] = {
-                    "tv": new_tv.strip().upper(),
-                    "yf": new_yf.strip().upper(),
-                    "categoria": new_cat
-                }
-                st.success(f"¡{new_name} agregado con éxito!")
-                st.rerun()
-            else:
-                st.error("Por favor completa todos los campos requeridos.")
-                
-    with tab_del:
-        activo_a_borrar = st.selectbox("Activo a eliminar:", list(st.session_state.activos_dict.keys()), key="del_sel")
-        if st.button("Eliminar Activo Seleccionado"):
-            if len(st.session_state.activos_dict) > 1:
-                del st.session_state.activos_dict[activo_a_borrar]
-                st.success(f"¡{activo_a_borrar} eliminado!")
-                st.rerun()
-            else:
-                st.warning("Debes mantener al menos un activo en la lista.")
-
-# Selector de Temporalidades
 timeframe_map = {
     "1 Minuto": {"tv": "1", "yf_interval": "1m", "yf_period": "7d"},
-    "2 Minutos": {"tv": "2", "yf_interval": "2m", "yf_period": "30d"},
     "5 Minutos": {"tv": "5", "yf_interval": "5m", "yf_period": "30d"},
     "15 Minutos": {"tv": "15", "yf_interval": "15m", "yf_period": "60d"},
     "30 Minutos": {"tv": "30", "yf_interval": "30m", "yf_period": "60d"},
     "1 Hora": {"tv": "60", "yf_interval": "1h", "yf_period": "730d"},
-    "2 Horas": {"tv": "120", "yf_interval": "1h", "yf_period": "730d"},
-    "4 Horas": {"tv": "240", "yf_interval": "1h", "yf_period": "730d"},
     "Diario (1D)": {"tv": "D", "yf_interval": "1d", "yf_period": "5y"},
-    "Semanal (1W)": {"tv": "W", "yf_interval": "1wk", "yf_period": "10y"},
-    "Mensual (1M)": {"tv": "M", "yf_interval": "1mo", "yf_period": "max"}
+    "Semanal (1W)": {"tv": "W", "yf_interval": "1wk", "yf_period": "10y"}
 }
 
 tf_sel = st.sidebar.selectbox("Temporalidad del Análisis:", list(timeframe_map.keys()), index=5)
@@ -232,22 +161,15 @@ tv_tf_code = timeframe_map[tf_sel]["tv"]
 yf_interval = timeframe_map[tf_sel]["yf_interval"]
 yf_period = timeframe_map[tf_sel]["yf_period"]
 
-# ==========================================
-# SECCIÓN 2: PARÁMETROS DEL SCORING
-# ==========================================
 with st.sidebar.expander("📈 Configuración Medias Móviles", expanded=False):
     use_mm1 = st.checkbox("MM1 (8)", value=True)
     len_mm1 = st.number_input("Período MM1", value=8, step=1)
-    
     use_mm2 = st.checkbox("MM2 (21)", value=True)
     len_mm2 = st.number_input("Período MM2", value=21, step=1)
-    
     use_mm3 = st.checkbox("MM3 (50)", value=True)
     len_mm3 = st.number_input("Período MM3", value=50, step=1)
-    
     use_mm4 = st.checkbox("MM4 (100)", value=True)
     len_mm4 = st.number_input("Período MM4", value=100, step=1)
-    
     use_mm5 = st.checkbox("MM5 (200)", value=True)
     len_mm5 = st.number_input("Período MM5", value=200, step=1)
 
@@ -255,11 +177,9 @@ with st.sidebar.expander("⚙️ Optimizaciones de Estrategia", expanded=False):
     use_atr_risk = st.checkbox("Activar SL/TP Dinámico con ATR", value=True)
     atr_len = st.number_input("Período ATR", value=14, step=1)
     atr_mult_sl = st.number_input("Multiplicador ATR", value=2.0, step=0.1)
-    
     use_adx_filter = st.checkbox("Activar Filtro ADX", value=True)
     adx_len = st.number_input("Período ADX", value=14, step=1)
     adx_th = st.number_input("Umbral ADX", value=20, step=1)
-    
     rsi_ob_limit = st.number_input("Límite RSI Compra", value=70.0, step=1.0)
     rsi_os_limit = st.number_input("Límite RSI Venta", value=30.0, step=1.0)
     fallback_ratio = st.number_input("Ratio R:B por defecto", value=2.0, step=0.1)
@@ -269,6 +189,28 @@ with st.sidebar.expander("🎯 SuperTrend & Oracle Oscillator", expanded=False):
     st_period = st.number_input("Período SuperTrend", value=22, step=1)
     st_mult = st.number_input("Multiplicador SuperTrend", value=3.0, step=0.1)
     use_oracle = st.checkbox("Integrar Oracle Oscillator al Score", value=True)
+
+with st.sidebar.expander("➕ / ➖ Gestionar Activos", expanded=False):
+    tab_add, tab_del = st.tabs(["Agregar", "Eliminar"])
+    with tab_add:
+        n_ticker = st.text_input("Ticker Visible (ej: TSLA):")
+        n_name = st.text_input("Nombre Corto:")
+        n_tv = st.text_input("Ticker TradingView (ej: NASDAQ:TSLA):")
+        n_yf = st.text_input("Ticker Yahoo (ej: TSLA):")
+        n_cat = st.selectbox("Categoría:", ["Indices", "Sectores", "Internacional", "Mercado Argentino"])
+        if st.button("Guardar Activo"):
+            if n_ticker and n_tv and n_yf:
+                st.session_state.activos_dict[n_ticker.upper()] = {
+                    "name": n_name, "tv": n_tv.upper(), "yf": n_yf.upper(), "cat": n_cat
+                }
+                st.rerun()
+    with tab_del:
+        b_ticker = st.selectbox("Activo a Borrar:", keys_list)
+        if st.button("Borrar"):
+            if len(keys_list) > 1:
+                del st.session_state.activos_dict[b_ticker]
+                st.session_state.idx_activo = 0
+                st.rerun()
 
 # ==========================================
 # CÁLCULOS MATEMÁTICOS DE PINE SCRIPT
@@ -288,25 +230,21 @@ def calcular_matriz_pine(symbol_yf, interval, period,
             
         close, high, low, open_p = df['Close'], df['High'], df['Low'], df['Open']
         
-        # Medias Móviles Exponenciales
         ma1 = close.ewm(span=m1, adjust=False).mean()
         ma2 = close.ewm(span=m2, adjust=False).mean()
         ma3 = close.ewm(span=m3, adjust=False).mean()
         ma4 = close.ewm(span=m4, adjust=False).mean()
         ma5 = close.ewm(span=m5, adjust=False).mean()
         
-        # RSI
         delta = close.diff()
         gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
         loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         
-        # ATR
         tr = pd.concat([high - low, (high - close.shift(1)).abs(), (low - close.shift(1)).abs()], axis=1).max(axis=1)
         atr = tr.ewm(alpha=1/a_len, adjust=False).mean()
         
-        # ADX
         up, down = high.diff(), -low.diff()
         plus_dm = pd.Series(np.where((up > down) & (up > 0), up, 0), index=df.index)
         minus_dm = pd.Series(np.where((down > up) & (down > 0), down, 0), index=df.index)
@@ -316,14 +254,11 @@ def calcular_matriz_pine(symbol_yf, interval, period,
         dx = (abs(plus_di - minus_di) / (plus_di + minus_di)) * 100
         adx = dx.ewm(alpha=1/adx_l, adjust=False).mean()
         
-        # Bandas de Bollinger y MACD
         bb_basis = close.rolling(window=20).mean()
         bb_dev = 2.0 * close.rolling(window=20).std()
-        bb_upper, bb_lower = bb_basis + bb_dev, bb_basis - bb_dev
         macd_line = close.ewm(span=8, adjust=False).mean() - close.ewm(span=m2, adjust=False).mean()
         signal_line = macd_line.ewm(span=14, adjust=False).mean()
         
-        # SuperTrend
         hl2 = (high + low) / 2
         st_atr = tr.ewm(alpha=1/st_p, adjust=False).mean()
         up_band = hl2 - (st_m * st_atr)
@@ -339,7 +274,6 @@ def calcular_matriz_pine(symbol_yf, interval, period,
         
         sop_val = low.rolling(10).min().iloc[-1]
         
-        # Oracle Oscillator
         hlc3 = (high + low + close) / 3
         esa = hlc3.ewm(span=10, adjust=False).mean()
         d = (hlc3 - esa).abs().ewm(span=10, adjust=False).mean()
@@ -347,7 +281,6 @@ def calcular_matriz_pine(symbol_yf, interval, period,
         ora_wt1 = ci.ewm(span=21, adjust=False).mean()
         ora_wt2 = ora_wt1.rolling(window=4).mean()
         
-        # Patrón de Vela
         patron_nombre, patron_pts, desc_patron = "Sin patrón", 0, "-"
         if (close.iloc[-2] < open_p.iloc[-2]) and (close.iloc[-1] > open_p.iloc[-1]) and (close.iloc[-1] >= open_p.iloc[-2]):
             patron_nombre, patron_pts, desc_patron = "Envolvente Alc", 10, "Absorción compradora"
@@ -361,7 +294,6 @@ def calcular_matriz_pine(symbol_yf, interval, period,
         macd_l, sig_l = float(macd_line.iloc[-1]), float(signal_line.iloc[-1])
         bbm_l = float(bb_basis.iloc[-1])
         
-        # SCORING DINÁMICO COMPLETO
         score = 0
         if use_mm5 and c_last > ma5_l: score += 10
         if use_mm3 and c_last > ma3_l: score += 5
@@ -405,152 +337,209 @@ def calcular_matriz_pine(symbol_yf, interval, period,
     except Exception:
         return None
 
-res = calcular_matriz_pine(
-    yf_symbol, yf_interval, yf_period,
-    len_mm1, len_mm2, len_mm3, len_mm4, len_mm5,
-    atr_len, atr_mult_sl, adx_len, adx_th, rsi_ob_limit, rsi_os_limit,
-    st_period, st_mult, use_oracle, use_st
-)
-
 # ==========================================
-# RENDER DEL GRÁFICO OFICIAL TRADINGVIEW
+# LAYOUT PRINCIPAL TIPO TRADINGVIEW (2 COLUMNAS)
 # ==========================================
-template_tv = """
-<div class="tradingview-widget-container" style="height:100%;width:100%">
-  <div id="tradingview_chart" style="height:550px;width:100%"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-  <script type="text/javascript">
-    new TradingView.widget({
-      "autosize": true,
-      "symbol": "SYMBOL_PLACEHOLDER",
-      "interval": "TIMEFRAME_PLACEHOLDER",
-      "timezone": "America/Argentina/Jujuy",
-      "theme": "dark",
-      "style": "1",
-      "locale": "es",
-      "toolbar_bg": "#1e222d",
-      "enable_publishing": false,
-      "allow_symbol_change": true,
-      "container_id": "tradingview_chart",
-      "hide_side_toolbar": false,
-      "studies": [
-        "RSI@tv-basicstudies",
-        "MACD@tv-basicstudies",
-        "MASimple@tv-basicstudies"
-      ]
-    });
-  </script>
-</div>
-"""
-tradingview_html = template_tv.replace("SYMBOL_PLACEHOLDER", tv_symbol).replace("TIMEFRAME_PLACEHOLDER", tv_tf_code)
-components.html(tradingview_html, height=560)
+col_main, col_watchlist = st.columns([0.76, 0.24])
 
-st.markdown("---")
+# OBTENER ACTIVO SELECCIONADO ACTUAL
+curr_key = keys_list[st.session_state.idx_activo]
+curr_item = st.session_state.activos_dict[curr_key]
 
-# ==========================================
-# RENDER DE LA TABLA MATRICIAL DE 6 COLUMNAS
-# ==========================================
-st.subheader(f"📑 Tabla Matricial del Sistema de Trading ({tf_sel})")
+tv_symbol = curr_item["tv"]
+yf_symbol = curr_item["yf"]
 
-if res:
-    c_ma1 = "bg-green" if res['precio'] > res['ma1'] else "bg-red"
-    t_ma1 = "ALCISTA" if res['precio'] > res['ma1'] else "BAJISTA"
+# PANEL IZQUIERDO: GRÁFICO + TABLA MATRICIAL
+with col_main:
+    st.markdown(f"### 📊 {curr_key} - {curr_item['name']} ({curr_item['cat']})")
     
-    c_ma2 = "bg-green" if res['precio'] > res['ma2'] else "bg-red"
-    t_ma2 = "ALCISTA" if res['precio'] > res['ma2'] else "BAJISTA"
-    
-    c_ma3 = "bg-green" if res['precio'] > res['ma3'] else "bg-red"
-    t_ma3 = "ALCISTA" if res['precio'] > res['ma3'] else "BAJISTA"
-    
-    c_ma4 = "bg-green" if res['precio'] > res['ma4'] else "bg-red"
-    t_ma4 = "ALCISTA" if res['precio'] > res['ma4'] else "BAJISTA"
-    
-    c_ma5 = "bg-green" if res['precio'] > res['ma5'] else "bg-red"
-    t_ma5 = "ALCISTA" if res['precio'] > res['ma5'] else "BAJISTA"
-
-    c_adx = "bg-green" if res['is_trending'] else "bg-red"
-    c_reg = "bg-teal" if res['is_trending'] else "bg-orange"
-    t_reg = "TENDENCIA" if res['is_trending'] else "RANGO LATERAL"
-
-    c_ora = "bg-green" if res['wt1'] > res['wt2'] else "bg-red"
-    t_ora = "COMPRA" if res['wt1'] > res['wt2'] else "VENTA"
-
-    c_score = "bg-green" if res['score'] >= 75 else ("bg-red" if res['score'] <= 25 else "bg-orange")
-    t_rsi = "SOBRECOMPRA" if res['rsi'] > rsi_ob_limit else ("SOBREVENTA" if res['rsi'] < rsi_os_limit else "NEUTRO")
-
-    c_sig = "bg-green" if res['signal'] == "LONG" else ("bg-red" if res['signal'] == "SHORT" else "bg-dark")
-
-    sl_str = f"${res['sl']:.2f}" if res['sl'] is not None else "N/A"
-    tp_str = f"${res['tp']:.2f}" if res['tp'] is not None else "N/A"
-
-    matriz_html = f"""
-    <table class="matriz-table">
-        <tr class="matriz-header">
-            <td>MÉTRICA</td>
-            <td>MM {len_mm1}</td>
-            <td>MM {len_mm2}</td>
-            <td>MM {len_mm3}</td>
-            <td>MM {len_mm4}</td>
-            <td>MM {len_mm5}</td>
-        </tr>
-        <tr>
-            <td class="bg-dark">Tendencia</td>
-            <td class="{c_ma1}">{t_ma1}</td>
-            <td class="{c_ma2}">{t_ma2}</td>
-            <td class="{c_ma3}">{t_ma3}</td>
-            <td class="{c_ma4}">{t_ma4}</td>
-            <td class="{c_ma5}">{t_ma5}</td>
-        </tr>
-        <tr>
-            <td class="bg-navy">FILTROS OPT.</td>
-            <td class="{c_adx}">ADX ({res['adx']:.1f})</td>
-            <td class="bg-dark">RÉGIMEN</td>
-            <td class="{c_reg}">{t_reg}</td>
-            <td class="bg-dark">CONF. MTF</td>
-            <td class="{c_ma2}">{t_ma2}</td>
-        </tr>
-        <tr>
-            <td class="bg-orange">ORACLE</td>
-            <td class="bg-dark">Estándar</td>
-            <td class="bg-dark">VALOR WT1</td>
-            <td class="bg-dark">{res['wt1']:.2f}</td>
-            <td class="bg-dark">ESTADO ORACLE</td>
-            <td class="{c_ora}">{t_ora}</td>
-        </tr>
-        <tr>
-            <td class="bg-purple">PATRÓN VELA</td>
-            <td class="bg-dark">{res['patron']}</td>
-            <td class="bg-dark">RESEÑA TÉCNICA</td>
-            <td class="bg-dark">{res['desc_patron']}</td>
-            <td class="bg-dark">PTS PATRÓN</td>
-            <td class="bg-dark">{res['patron_pts']} Pts</td>
-        </tr>
-        <tr>
-            <td class="bg-navy">SCORE BOT</td>
-            <td class="{c_score}">{res['score']} / 100</td>
-            <td class="bg-dark">ESTADO RSI</td>
-            <td class="bg-dark">{t_rsi}</td>
-            <td class="bg-dark">VALOR RSI</td>
-            <td class="bg-dark">{res['rsi']:.1f}</td>
-        </tr>
-        <tr>
-            <td class="bg-gold">SEÑAL BOT</td>
-            <td class="{c_sig}">{res['signal']}</td>
-            <td class="bg-dark">PRECIO ENTRADA</td>
-            <td class="bg-dark">${res['precio']:.2f}</td>
-            <td class="bg-dark">RATIO R:B REAL</td>
-            <td class="bg-dark">1 : {fallback_ratio:.1f}</td>
-        </tr>
-        <tr>
-            <td class="bg-purple">GESTIÓN RIESGO</td>
-            <td class="bg-red">STOP LOSS (ATR)</td>
-            <td class="bg-red">{sl_str}</td>
-            <td class="bg-green">TAKE PROFIT</td>
-            <td class="bg-green">{tp_str}</td>
-            <td class="bg-dark">RIESGO: {atr_mult_sl:.1f}x ATR</td>
-        </tr>
-    </table>
+    # Widget Oficial de TradingView
+    template_tv = """
+    <div class="tradingview-widget-container" style="height:100%;width:100%">
+      <div id="tradingview_chart" style="height:500px;width:100%"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      <script type="text/javascript">
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": "SYMBOL_PLACEHOLDER",
+          "interval": "TIMEFRAME_PLACEHOLDER",
+          "timezone": "America/Argentina/Jujuy",
+          "theme": "dark",
+          "style": "1",
+          "locale": "es",
+          "toolbar_bg": "#1e222d",
+          "enable_publishing": false,
+          "allow_symbol_change": true,
+          "container_id": "tradingview_chart",
+          "hide_side_toolbar": false,
+          "studies": [
+            "RSI@tv-basicstudies",
+            "MACD@tv-basicstudies",
+            "MASimple@tv-basicstudies"
+          ]
+        });
+      </script>
+    </div>
     """
-    st.markdown(matriz_html, unsafe_allow_html=True)
-else:
-    st.warning("No hay suficientes datos disponibles para este activo en la temporalidad seleccionada.")
+    tradingview_html = template_tv.replace("SYMBOL_PLACEHOLDER", tv_symbol).replace("TIMEFRAME_PLACEHOLDER", tv_tf_code)
+    components.html(tradingview_html, height=510)
+    
+    # Cálculo y Render de la Tabla Matricial
+    res = calcular_matriz_pine(
+        yf_symbol, yf_interval, yf_period,
+        len_mm1, len_mm2, len_mm3, len_mm4, len_mm5,
+        atr_len, atr_mult_sl, adx_len, adx_th, rsi_ob_limit, rsi_os_limit,
+        st_period, st_mult, use_oracle, use_st
+    )
+    
+    if res:
+        c_ma1 = "bg-green" if res['precio'] > res['ma1'] else "bg-red"
+        t_ma1 = "ALCISTA" if res['precio'] > res['ma1'] else "BAJISTA"
+        c_ma2 = "bg-green" if res['precio'] > res['ma2'] else "bg-red"
+        t_ma2 = "ALCISTA" if res['precio'] > res['ma2'] else "BAJISTA"
+        c_ma3 = "bg-green" if res['precio'] > res['ma3'] else "bg-red"
+        t_ma3 = "ALCISTA" if res['precio'] > res['ma3'] else "BAJISTA"
+        c_ma4 = "bg-green" if res['precio'] > res['ma4'] else "bg-red"
+        t_ma4 = "ALCISTA" if res['precio'] > res['ma4'] else "BAJISTA"
+        c_ma5 = "bg-green" if res['precio'] > res['ma5'] else "bg-red"
+        t_ma5 = "ALCISTA" if res['precio'] > res['ma5'] else "BAJISTA"
+
+        c_adx = "bg-green" if res['is_trending'] else "bg-red"
+        c_reg = "bg-teal" if res['is_trending'] else "bg-orange"
+        t_reg = "TENDENCIA" if res['is_trending'] else "RANGO LATERAL"
+
+        c_ora = "bg-green" if res['wt1'] > res['wt2'] else "bg-red"
+        t_ora = "COMPRA" if res['wt1'] > res['wt2'] else "VENTA"
+
+        c_score = "bg-green" if res['score'] >= 75 else ("bg-red" if res['score'] <= 25 else "bg-orange")
+        t_rsi = "SOBRECOMPRA" if res['rsi'] > rsi_ob_limit else ("SOBREVENTA" if res['rsi'] < rsi_os_limit else "NEUTRO")
+
+        c_sig = "bg-green" if res['signal'] == "LONG" else ("bg-red" if res['signal'] == "SHORT" else "bg-dark")
+
+        sl_str = f"${res['sl']:.2f}" if res['sl'] is not None else "N/A"
+        tp_str = f"${res['tp']:.2f}" if res['tp'] is not None else "N/A"
+
+        matriz_html = f"""
+        <table class="matriz-table">
+            <tr class="matriz-header">
+                <td>MÉTRICA</td>
+                <td>MM {len_mm1}</td>
+                <td>MM {len_mm2}</td>
+                <td>MM {len_mm3}</td>
+                <td>MM {len_mm4}</td>
+                <td>MM {len_mm5}</td>
+            </tr>
+            <tr>
+                <td class="bg-dark">Tendencia</td>
+                <td class="{c_ma1}">{t_ma1}</td>
+                <td class="{c_ma2}">{t_ma2}</td>
+                <td class="{c_ma3}">{t_ma3}</td>
+                <td class="{c_ma4}">{t_ma4}</td>
+                <td class="{c_ma5}">{t_ma5}</td>
+            </tr>
+            <tr>
+                <td class="bg-navy">FILTROS OPT.</td>
+                <td class="{c_adx}">ADX ({res['adx']:.1f})</td>
+                <td class="bg-dark">RÉGIMEN</td>
+                <td class="{c_reg}">{t_reg}</td>
+                <td class="bg-dark">CONF. MTF</td>
+                <td class="{c_ma2}">{t_ma2}</td>
+            </tr>
+            <tr>
+                <td class="bg-orange">ORACLE</td>
+                <td class="bg-dark">Estándar</td>
+                <td class="bg-dark">VALOR WT1</td>
+                <td class="bg-dark">{res['wt1']:.2f}</td>
+                <td class="bg-dark">ESTADO ORACLE</td>
+                <td class="{c_ora}">{t_ora}</td>
+            </tr>
+            <tr>
+                <td class="bg-purple">PATRÓN VELA</td>
+                <td class="bg-dark">{res['patron']}</td>
+                <td class="bg-dark">RESEÑA TÉCNICA</td>
+                <td class="bg-dark">{res['desc_patron']}</td>
+                <td class="bg-dark">PTS PATRÓN</td>
+                <td class="bg-dark">{res['patron_pts']} Pts</td>
+            </tr>
+            <tr>
+                <td class="bg-navy">SCORE BOT</td>
+                <td class="{c_score}">{res['score']} / 100</td>
+                <td class="bg-dark">ESTADO RSI</td>
+                <td class="bg-dark">{t_rsi}</td>
+                <td class="bg-dark">VALOR RSI</td>
+                <td class="bg-dark">{res['rsi']:.1f}</td>
+            </tr>
+            <tr>
+                <td class="bg-gold">SEÑAL BOT</td>
+                <td class="{c_sig}">{res['signal']}</td>
+                <td class="bg-dark">PRECIO ENTRADA</td>
+                <td class="bg-dark">${res['precio']:.2f}</td>
+                <td class="bg-dark">RATIO R:B REAL</td>
+                <td class="bg-dark">1 : {fallback_ratio:.1f}</td>
+            </tr>
+            <tr>
+                <td class="bg-purple">GESTIÓN RIESGO</td>
+                <td class="bg-red">STOP LOSS (ATR)</td>
+                <td class="bg-red">{sl_str}</td>
+                <td class="bg-green">TAKE PROFIT</td>
+                <td class="bg-green">{tp_str}</td>
+                <td class="bg-dark">RIESGO: {atr_mult_sl:.1f}x ATR</td>
+            </tr>
+        </table>
+        """
+        st.markdown(matriz_html, unsafe_allow_html=True)
+
+# PANEL DERECHO: LISTA DE SEGUIMIENTO (WATCHLIST TIPO TRADINGVIEW)
+with col_watchlist:
+    st.markdown("### 📌 Lista de seguimiento")
+    
+    # Filtro de categorías
+    cat_filtro = st.selectbox("Filtrar Categoría:", ["Todas", "Indices", "Sectores", "Internacional", "Mercado Argentino"])
+    
+    # Controles de navegación rápida con botones y soporte de flechas del teclado
+    col_up, col_dn = st.columns(2)
+    with col_up:
+        if st.button("⬆️ Anterior (Arriba)", use_container_width=True):
+            st.session_state.idx_activo = (st.session_state.idx_activo - 1) % len(keys_list)
+            st.rerun()
+    with col_dn:
+        if st.button("⬇️ Siguiente (Abajo)", use_container_width=True):
+            st.session_state.idx_activo = (st.session_state.idx_activo + 1) % len(keys_list)
+            st.rerun()
+
+    # Selector directo de activo
+    opciones_visibles = []
+    for i, k in enumerate(keys_list):
+        item = st.session_state.activos_dict[k]
+        if cat_filtro == "Todas" or item["cat"] == cat_filtro:
+            opciones_visibles.append(k)
+
+    if curr_key not in opciones_visibles and len(opciones_visibles) > 0:
+        curr_key = opciones_visibles[0]
+
+    sel_key = st.radio(
+        "Seleccionar Activo:",
+        options=opciones_visibles,
+        index=opciones_visibles.index(curr_key) if curr_key in opciones_visibles else 0,
+        label_visibility="collapsed"
+    )
+
+    if sel_key != curr_key:
+        st.session_state.idx_activo = keys_list.index(sel_key)
+        st.rerun()
+
+# SCRIPT JS PARA NAVEGAR CON FLECHAS DEL TECLADO (ARRIBA Y ABAJO)
+components.html("""
+<script>
+const doc = window.parent.document;
+doc.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowDown') {
+        const btnDn = doc.querySelector('button:contains("Siguiente")') || doc.querySelectorAll('button')[1];
+        if (btnDn) btnDn.click();
+    } else if (e.key === 'ArrowUp') {
+        const btnUp = doc.querySelector('button:contains("Anterior")') || doc.querySelectorAll('button')[0];
+        if (btnUp) btnUp.click();
+    }
+});
+</script>
+""", height=0)
