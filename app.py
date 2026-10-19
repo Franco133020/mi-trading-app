@@ -71,33 +71,40 @@ if ticker_custom.strip():
     tv_symbol = ticker_custom.strip().upper()
     yf_symbol = tv_symbol.split(":")[-1] + ".BA" if "BCBA" in tv_symbol else tv_symbol.split(":")[-1]
 
-# Selector de Temporalidades
+# MAPEADO COMPLETO DE TEMPORALIDADES (TRADINGVIEW VS YFINANCE)
 timeframe_map = {
     "1 Minuto": {"tv": "1", "yf_interval": "1m", "yf_period": "7d"},
+    "2 Minutos": {"tv": "2", "yf_interval": "2m", "yf_period": "30d"},
     "5 Minutos": {"tv": "5", "yf_interval": "5m", "yf_period": "30d"},
     "15 Minutos": {"tv": "15", "yf_interval": "15m", "yf_period": "60d"},
+    "30 Minutos": {"tv": "30", "yf_interval": "30m", "yf_period": "60d"},
+    "45 Minutos": {"tv": "45", "yf_interval": "30m", "yf_period": "60d"},
     "1 Hora": {"tv": "60", "yf_interval": "1h", "yf_period": "730d"},
-    "Diario (1D)": {"tv": "D", "yf_interval": "1d", "yf_period": "2y"},
-    "Semanal (1W)": {"tv": "W", "yf_interval": "1wk", "yf_period": "5y"}
+    "2 Horas": {"tv": "120", "yf_interval": "1h", "yf_period": "730d"},
+    "3 Horas": {"tv": "180", "yf_interval": "1h", "yf_period": "730d"},
+    "4 Horas": {"tv": "240", "yf_interval": "1h", "yf_period": "730d"},
+    "Diario (1D)": {"tv": "D", "yf_interval": "1d", "yf_period": "5y"},
+    "Semanal (1W)": {"tv": "W", "yf_interval": "1wk", "yf_period": "10y"},
+    "Mensual (1M)": {"tv": "M", "yf_interval": "1mo", "yf_period": "max"}
 }
 
-tf_sel = st.sidebar.selectbox("Temporalidad del Análisis:", list(timeframe_map.keys()), index=3)
+tf_sel = st.sidebar.selectbox("Temporalidad del Análisis:", list(timeframe_map.keys()), index=6)
 tv_tf_code = timeframe_map[tf_sel]["tv"]
 yf_interval = timeframe_map[tf_sel]["yf_interval"]
 yf_period = timeframe_map[tf_sel]["yf_period"]
 
-# CÁLCULOS MATEMÁTICOS RÉPLICA FIEL DE PINE SCRIPT
+# CÁLCULO MATEMÁTICO INTEGRAL DE SCORING EN PYTHON
 @st.cache_data(ttl=60)
 def calcular_matriz_pine(symbol_yf, interval, period):
     try:
         df = yf.download(symbol_yf, period=period, interval=interval, progress=False)
-        if df.empty or len(df) < 50:
+        if df.empty or len(df) < 30:
             return None
             
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
             
-        close, high, low, open_p, vol = df['Close'], df['High'], df['Low'], df['Open'], df['Volume']
+        close, high, low, open_p = df['Close'], df['High'], df['Low'], df['Open']
         
         # 1. Medias Móviles Exponenciales (EMA)
         ma1 = close.ewm(span=8, adjust=False).mean()
@@ -142,7 +149,6 @@ def calcular_matriz_pine(symbol_yf, interval, period):
         dn_band = hl2 + (st_mult * st_atr)
         
         st_dir = np.zeros(len(df))
-        st_line = np.zeros(len(df))
         for i in range(1, len(df)):
             if close.iloc[i] > dn_band.iloc[i-1]:
                 st_dir[i] = -1
@@ -151,13 +157,10 @@ def calcular_matriz_pine(symbol_yf, interval, period):
             else:
                 st_dir[i] = st_dir[i-1]
         
-        # 7. Parabolic SAR (0.02, 0.02, 0.2)
-        psar_bull = close.iloc[-1] > ma2.iloc[-1] # Estimación simplificada del SAR
-        
-        # 8. Soportes y Resistencias Pivote (5, 5)
+        # 7. Soportes y Resistencias Pivote
         sop_val = low.rolling(10).min().iloc[-1]
         
-        # 9. Oracle Oscillator (Adaptativo Sectorial)
+        # 8. Oracle Oscillator
         hlc3 = (high + low + close) / 3
         esa = hlc3.ewm(span=10, adjust=False).mean()
         d = (hlc3 - esa).abs().ewm(span=10, adjust=False).mean()
@@ -165,7 +168,7 @@ def calcular_matriz_pine(symbol_yf, interval, period):
         ora_wt1 = ci.ewm(span=21, adjust=False).mean()
         ora_wt2 = ora_wt1.rolling(window=4).mean()
         
-        # 10. Patrón de Vela
+        # 9. Patrón de Vela
         patron_nombre, patron_pts, desc_patron = "Sin patrón", 0, "-"
         if (close.iloc[-2] < open_p.iloc[-2]) and (close.iloc[-1] > open_p.iloc[-1]) and (close.iloc[-1] >= open_p.iloc[-2]):
             patron_nombre, patron_pts, desc_patron = "Envolvente Alc", 10, "Absorción compradora"
@@ -179,24 +182,22 @@ def calcular_matriz_pine(symbol_yf, interval, period):
         macd_l, sig_l = float(macd_line.iloc[-1]), float(signal_line.iloc[-1])
         bbm_l = float(bb_basis.iloc[-1])
         
-        # ==========================================
-        # CÁLCULO TOTAL DEL SCORE (100 PTS TRADINGVIEW)
-        # ==========================================
+        # CÁLCULO TOTAL DE SCORE (100 PTS)
         score = 0
-        if c_last > ma5_l: score += 10         # 1. Sobre MM 200
-        if c_last > ma3_l: score += 5          # 2. Sobre MM 50
-        if ma1_l > ma2_l: score += 5           # 3. MM 8 > MM 21
-        if c_last > ma1_l: score += 5          # 4. Sobre MM 8
-        if c_last > sop_val: score += 10       # 5. Sobre Soporte Principal
-        if st_dir[-1] < 0: score += 10         # 6. SuperTrend Alcista
-        if psar_bull: score += 5               # 7. Parabolic SAR Alcista
-        if rsi_l >= 50 and rsi_l <= 70: score += 10 # 8. RSI Saludable
-        if macd_l > sig_l: score += 5          # 9. MACD Alcista
-        if c_last > bbm_l: score += 5          # 10. Sobre Media Bollinger
-        if wt1_l > wt2_l: score += 10          # 11. Oracle Cruce Compra
-        if wt1_l > 0: score += 5               # 12. Oracle Zona Positiva
-        if wt1_l < 40.0: score += 5            # 13. Oracle No Sobrecomprado
-        score += patron_pts                    # 14. Puntos por Patrón de Velas
+        if c_last > ma5_l: score += 10
+        if c_last > ma3_l: score += 5
+        if ma1_l > ma2_l: score += 5
+        if c_last > ma1_l: score += 5
+        if c_last > sop_val: score += 10
+        if st_dir[-1] < 0: score += 10
+        if c_last > ma2_l: score += 5
+        if rsi_l >= 50 and rsi_l <= 70: score += 10
+        if macd_l > sig_l: score += 5
+        if c_last > bbm_l: score += 5
+        if wt1_l > wt2_l: score += 10
+        if wt1_l > 0: score += 5
+        if wt1_l < 40.0: score += 5
+        score += patron_pts
         
         is_trending = adx_l >= 20
         if score >= 75 and is_trending:
@@ -224,7 +225,7 @@ def calcular_matriz_pine(symbol_yf, interval, period):
 
 res = calcular_matriz_pine(yf_symbol, yf_interval, yf_period)
 
-# RENDER DEL GRÁFICO
+# RENDER DEL GRÁFICO (SINCRONIZADO EN TIEMPO REAL CON LA TEMPORALIDAD)
 template_tv = """
 <div class="tradingview-widget-container" style="height:100%;width:100%">
   <div id="tradingview_chart" style="height:550px;width:100%"></div>
@@ -361,4 +362,4 @@ if res:
     """
     st.markdown(matriz_html, unsafe_allow_html=True)
 else:
-    st.warning("No hay suficientes datos disponibles para calcular este activo en la temporalidad seleccionada.")
+    st.warning("No hay suficientes datos disponibles para este activo en la temporalidad seleccionada.")
