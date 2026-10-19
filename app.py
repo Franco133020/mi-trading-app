@@ -51,28 +51,77 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# SECCIÓN 1: CONFIGURACIÓN GENERAL DEL ACTIVO
+# INICIALIZACIÓN DE LA LISTA DE ACTIVOS (SESSION STATE)
+# ==========================================
+if "activos_dict" not in st.session_state:
+    st.session_state.activos_dict = {
+        "McDonald's (MCD)": {"tv": "NYSE:MCD", "yf": "MCD", "sector": "Consumo / Defensivas"},
+        "Apple Inc. (AAPL)": {"tv": "NASDAQ:AAPL", "yf": "AAPL", "sector": "Tecnología"},
+        "NVIDIA Corp. (NVDA)": {"tv": "NASDAQ:NVDA", "yf": "NVDA", "sector": "Tecnología"},
+        "Grupo Financiero Galicia (GGAL)": {"tv": "BCBA:GGAL", "yf": "GGAL.BA", "sector": "Bancos y Finanzas"},
+        "YPF S.A. (YPFD)": {"tv": "BCBA:YPFD", "yf": "YPFD.BA", "sector": "Energía"},
+        "Bitcoin / USDT": {"tv": "BINANCE:BTCUSDT", "yf": "BTC-USD", "sector": "Criptomonedas"}
+    }
+
+# ==========================================
+# SECCIÓN 1: CONFIGURACIÓN Y GESTIÓN DE ACTIVOS
 # ==========================================
 st.sidebar.header("⚙️ Configuración del Activo")
 
-ticker_dict = {
-    "McDonald's (MCD)": {"tv": "NYSE:MCD", "yf": "MCD"},
-    "Grupo Financiero Galicia (GGAL)": {"tv": "BCBA:GGAL", "yf": "GGAL.BA"},
-    "YPF S.A. (YPFD)": {"tv": "BCBA:YPFD", "yf": "YPFD.BA"},
-    "Apple Inc. (AAPL)": {"tv": "NASDAQ:AAPL", "yf": "AAPL"},
-    "NVIDIA Corp. (NVDA)": {"tv": "NASDAQ:NVDA", "yf": "NVDA"},
-    "Bitcoin / USDT": {"tv": "BINANCE:BTCUSDT", "yf": "BTC-USD"}
-}
+# 1.1 Muestra de activos clasificados por sector
+filtrar_sector = st.sidebar.checkbox("Filtrar activos por Sector", value=False)
 
-activo_sel = st.sidebar.selectbox("Seleccionar Activo:", list(ticker_dict.keys()))
-tv_symbol = ticker_dict[activo_sel]["tv"]
-yf_symbol = ticker_dict[activo_sel]["yf"]
+activos_disponibles = st.session_state.activos_dict
 
-ticker_custom = st.sidebar.text_input("O Ticker Manual (TradingView):", value="")
-if ticker_custom.strip():
-    tv_symbol = ticker_custom.strip().upper()
-    yf_symbol = tv_symbol.split(":")[-1] + ".BA" if "BCBA" in tv_symbol else tv_symbol.split(":")[-1]
+if filtrar_sector:
+    sectores_unicos = sorted(list(set(v["sector"] for v in activos_disponibles.values())))
+    sector_sel = st.sidebar.selectbox("Seleccionar Sector:", sectores_unicos)
+    activos_filtrados = {k: v for k, v in activos_disponibles.items() if v["sector"] == sector_sel}
+else:
+    activos_filtrados = activos_disponibles
 
+# Etiqueta con sector incluido si se ven todos
+lista_opciones = [f"[{v['sector']}] {k}" if not filtrar_sector else k for k, v in activos_filtrados.items()]
+opcion_seleccionada = st.sidebar.selectbox("Seleccionar Activo:", lista_opciones)
+
+# Obtención de claves seleccionadas
+nombre_limpio = opcion_seleccionada.split("] ")[-1] if "]" in opcion_seleccionada else opcion_seleccionada
+tv_symbol = activos_disponibles[nombre_limpio]["tv"]
+yf_symbol = activos_disponibles[nombre_limpio]["yf"]
+
+# 1.2 Gestión dinamica: Agregar / Eliminar
+with st.sidebar.expander("➕ / ➖ Gestionar Lista de Activos", expanded=False):
+    tab_add, tab_del = st.tabs(["Agregar Activo", "Eliminar Activo"])
+    
+    with tab_add:
+        new_name = st.text_input("Nombre / Nombre corto:", placeholder="Ej: Microsoft (MSFT)")
+        new_tv = st.text_input("Ticker TradingView:", placeholder="Ej: NASDAQ:MSFT")
+        new_yf = st.text_input("Ticker Yahoo Finance:", placeholder="Ej: MSFT")
+        new_sec = st.text_input("Sector:", value="General")
+        
+        if st.button("Guardar Nuevo Activo"):
+            if new_name.strip() and new_tv.strip() and new_yf.strip():
+                st.session_state.activos_dict[new_name.strip()] = {
+                    "tv": new_tv.strip().upper(),
+                    "yf": new_yf.strip().upper(),
+                    "sector": new_sec.strip()
+                }
+                st.success(f"¡{new_name} agregado con éxito!")
+                st.rerun()
+            else:
+                st.error("Por favor completa todos los campos del activo.")
+                
+    with tab_del:
+        activo_a_borrar = st.selectbox("Activo a eliminar:", list(st.session_state.activos_dict.keys()), key="del_sel")
+        if st.button("Eliminar Activo Seleccionado"):
+            if len(st.session_state.activos_dict) > 1:
+                del st.session_state.activos_dict[activo_a_borrar]
+                st.success(f"¡{activo_a_borrar} eliminado!")
+                st.rerun()
+            else:
+                st.warning("Debes mantener al menos un activo en la lista.")
+
+# 1.3 Selector de Temporalidades
 timeframe_map = {
     "1 Minuto": {"tv": "1", "yf_interval": "1m", "yf_period": "7d"},
     "2 Minutos": {"tv": "2", "yf_interval": "2m", "yf_period": "30d"},
