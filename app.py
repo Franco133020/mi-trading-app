@@ -4,7 +4,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
-# Configuración de la página
+# Configuración de la página Streamlit
 st.set_page_config(
     page_title="Sistema Scoring + Markoni + Oracle",
     page_icon="📊",
@@ -12,13 +12,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS de alto contraste tipo TradingView
+# Estilos CSS de alto contraste
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #d1d4dc; }
     div[data-testid="stSidebar"] { background-color: #161922; }
     
-    /* Estilos para la tabla matricial */
     .matriz-table {
         width: 100%;
         border-collapse: collapse;
@@ -46,9 +45,9 @@ st.markdown("""
 
 st.title("📊 Sistema Scoring + Hyper Markoni + Oracle Oscillator")
 
-# Sidebar - Selección de Activo
 st.sidebar.header("⚙️ Configuración del Activo")
 
+# Selección de Activo
 ticker_dict = {
     "McDonald's (MCD)": {"tv": "NYSE:MCD", "yf": "MCD"},
     "Grupo Financiero Galicia (GGAL)": {"tv": "BCBA:GGAL", "yf": "GGAL.BA"},
@@ -67,46 +66,66 @@ if ticker_custom.strip():
     tv_symbol = ticker_custom.strip().upper()
     yf_symbol = tv_symbol.split(":")[-1] + ".BA" if "BCBA" in tv_symbol else tv_symbol.split(":")[-1]
 
-# CÁLCULOS MATEMÁTICOS DE PINE SCRIPT EN PYTHON
-@st.cache_data(ttl=300)
-def calcular_matriz_pine(symbol_yf):
+# Selector de Temporalidades (Mapeo TV vs YFinance)
+timeframe_map = {
+    "1 Minuto": {"tv": "1", "yf_interval": "1m", "yf_period": "7d"},
+    "5 Minutos": {"tv": "5", "yf_interval": "5m", "yf_period": "30d"},
+    "15 Minutos": {"tv": "15", "yf_interval": "15m", "yf_period": "60d"},
+    "1 Hora": {"tv": "60", "yf_interval": "1h", "yf_period": "730d"},
+    "Diario (1D)": {"tv": "D", "yf_interval": "1d", "yf_period": "2y"},
+    "Semanal (1W)": {"tv": "W", "yf_interval": "1wk", "yf_period": "5y"}
+}
+
+tf_sel = st.sidebar.selectbox("Temporalidad del Análisis:", list(timeframe_map.keys()), index=3)
+tv_tf_code = timeframe_map[tf_sel]["tv"]
+yf_interval = timeframe_map[tf_sel]["yf_interval"]
+yf_period = timeframe_map[tf_sel]["yf_period"]
+
+# CÁLCULOS MULTITEMPORALES DE PINE SCRIPT EN PYTHON
+@st.cache_data(ttl=60)
+def calcular_matriz_pine(symbol_yf, interval, period):
     try:
-        df = yf.download(symbol_yf, period="1y", interval="1d", progress=False)
-        if df.empty:
+        df = yf.download(symbol_yf, period=period, interval=interval, progress=False)
+        if df.empty or len(df) < 50:
             return None
+            
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
             
-        close, high, low, open_p, volume = df['Close'], df['High'], df['Low'], df['Open'], df['Volume']
+        close, high, low, open_p = df['Close'], df['High'], df['Low'], df['Open']
         
-        # MMs
+        # Medias Móviles Exponenciales (EMA)
         ma1 = close.ewm(span=8, adjust=False).mean()
         ma2 = close.ewm(span=21, adjust=False).mean()
-        ma3 = close.rolling(window=50).mean()
+        ma3 = close.ewm(span=50, adjust=False).mean()
         ma4 = close.ewm(span=100, adjust=False).mean()
         ma5 = close.ewm(span=200, adjust=False).mean()
         
-        # RSI y ATR
+        # RSI (14)
         delta = close.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
+        loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         
+        # ATR (14)
         tr = pd.concat([high - low, (high - close.shift(1)).abs(), (low - close.shift(1)).abs()], axis=1).max(axis=1)
-        atr = tr.rolling(window=14).mean()
+        atr = tr.ewm(alpha=1/14, adjust=False).mean()
         
-        # ADX
-        up, down = high.diff(), -low.diff()
-        plus_dm = np.where((up > down) & (up > 0), up, 0)
-        minus_dm = np.where((down > up) & (down > 0), down, 0)
-        atr_14 = tr.rolling(14).mean()
-        plus_di = 100 * (pd.Series(plus_dm).rolling(14).mean() / atr_14)
-        minus_di = 100 * (pd.Series(minus_dm).rolling(14).mean() / atr_14)
+        # ADX (14)
+        up = high.diff()
+        down = -low.diff()
+        plus_dm = pd.Series(np.where((up > down) & (up > 0), up, 0), index=df.index)
+        minus_dm = pd.Series(np.where((down > up) & (down > 0), down, 0), index=df.index)
+        
+        tr_smooth = tr.ewm(alpha=1/14, adjust=False).mean()
+        plus_di = 100 * (plus_dm.ewm(alpha=1/14, adjust=False).mean() / tr_smooth)
+        minus_di = 100 * (minus_dm.ewm(alpha=1/14, adjust=False).mean() / tr_smooth)
+        
         dx = (abs(plus_di - minus_di) / (plus_di + minus_di)) * 100
-        adx = dx.rolling(14).mean()
+        adx = dx.ewm(alpha=1/14, adjust=False).mean()
         
-        # BB y MACD
+        # Bollinger y MACD
         bb_basis = close.rolling(window=20).mean()
         bb_dev = 2.0 * close.rolling(window=20).std()
         bb_upper = bb_basis + bb_dev
@@ -137,26 +156,26 @@ def calcular_matriz_pine(symbol_yf):
         macd_l, sig_l = float(macd_line.iloc[-1]), float(signal_line.iloc[-1])
         bbu_l, bbl_l, bbm_l = float(bb_upper.iloc[-1]), float(bb_lower.iloc[-1]), float(bb_basis.iloc[-1])
         
-        # Score Bot
+        # Scoring completo (100 Pts)
         score = 0
         if c_last > ma5_l: score += 10
         if c_last > ma3_l: score += 5
         if ma1_l > ma2_l: score += 5
         if c_last > ma1_l: score += 5
-        if rsi_l >= 50 and rsi_l <= 70: score += 10
-        if macd_l > sig_l: score += 5
         if c_last > bbm_l: score += 5
+        if macd_l > sig_l: score += 5
+        if rsi_l >= 50 and rsi_l <= 70: score += 10
         if wt1_l > wt2_l: score += 10
         if wt1_l > 0: score += 5
         if wt1_l < 50: score += 5
         score += patron_pts
         
         is_trending = adx_l >= 20
-        if score >= 65 and is_trending:
+        if score >= 65:
             signal = "LONG"
             sl = c_last - (atr_l * 2.0)
             tp = c_last + ((c_last - sl) * 2.0)
-        elif score <= 35 and is_trending:
+        elif score <= 35:
             signal = "SHORT"
             sl = c_last + (atr_l * 2.0)
             tp = c_last - ((sl - c_last) * 2.0)
@@ -175,9 +194,9 @@ def calcular_matriz_pine(symbol_yf):
     except Exception:
         return None
 
-res = calcular_matriz_pine(yf_symbol)
+res = calcular_matriz_pine(yf_symbol, yf_interval, yf_period)
 
-# RENDER DEL GRÁFICO
+# RENDER DEL GRÁFICO (SINCRONIZADO CON LA TEMPORALIDAD)
 template_tv = """
 <div class="tradingview-widget-container" style="height:100%;width:100%">
   <div id="tradingview_chart" style="height:550px;width:100%"></div>
@@ -186,7 +205,7 @@ template_tv = """
     new TradingView.widget({
       "autosize": true,
       "symbol": "SYMBOL_PLACEHOLDER",
-      "interval": "60",
+      "interval": "TIMEFRAME_PLACEHOLDER",
       "timezone": "America/Argentina/Jujuy",
       "theme": "dark",
       "style": "1",
@@ -205,13 +224,13 @@ template_tv = """
   </script>
 </div>
 """
-tradingview_html = template_tv.replace("SYMBOL_PLACEHOLDER", tv_symbol)
+tradingview_html = template_tv.replace("SYMBOL_PLACEHOLDER", tv_symbol).replace("TIMEFRAME_PLACEHOLDER", tv_tf_code)
 components.html(tradingview_html, height=560)
 
 st.markdown("---")
 
 # RENDER DE LA TABLA MATRICIAL DE 6 COLUMNAS
-st.subheader("📑 Tabla Matricial del Sistema de Trading")
+st.subheader(f"📑 Tabla Matricial del Sistema de Trading ({tf_sel})")
 
 if res:
     c_ma1 = "bg-green" if res['precio'] > res['ma1'] else "bg-red"
@@ -267,7 +286,7 @@ if res:
             <td class="{c_adx}">ADX ({res['adx']:.1f})</td>
             <td class="bg-dark">RÉGIMEN</td>
             <td class="{c_reg}">{t_reg}</td>
-            <td class="bg-dark">CONF. MTF (W)</td>
+            <td class="bg-dark">CONF. MTF</td>
             <td class="{c_ma2}">{t_ma2}</td>
         </tr>
         <tr>
@@ -313,3 +332,5 @@ if res:
     </table>
     """
     st.markdown(matriz_html, unsafe_allow_html=True)
+else:
+    st.warning("No hay suficientes datos intradiarios disponibles para este activo en la temporalidad seleccionada.")
