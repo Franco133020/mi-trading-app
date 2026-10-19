@@ -86,12 +86,6 @@ def calcular_matriz_pine(symbol_yf):
         ma4 = close.ewm(span=100, adjust=False).mean()
         ma5 = close.ewm(span=200, adjust=False).mean()
         
-        # Dashboard Variables
-        asl21 = close.ewm(span=21, adjust=False).mean()
-        sma30 = close.rolling(window=30).mean()
-        ema150 = close.ewm(span=150, adjust=False).mean()
-        ema200 = close.ewm(span=200, adjust=False).mean()
-        
         # RSI y ATR
         delta = close.diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
@@ -214,10 +208,13 @@ components.html(tradingview_html, height=560)
 
 st.markdown("---")
 
-# RENDER DE LA TABLA MATRICIAL DE 6 COLUMNAS (Réplica exacta de tu imagen)
+# RENDER DE LA TABLA MATRICIAL DE 6 COLUMNAS
 st.subheader("📑 Tabla Matricial del Sistema de Trading")
 
 if res:
+    sl_str = f"${res['sl']:.2f}" if res['sl'] is not None else "N/A"
+    tp_str = f"${res['tp']:.2f}" if res['tp'] is not None else "N/A"
+
     matriz_html = f"""
     <table class="matriz-table">
         <tr class="matriz-header">
@@ -242,48 +239,4 @@ if res:
             <td class="bg-dark">RÉGIMEN</td>
             <td class="{'bg-teal' if res['is_trending'] else 'bg-orange'}">{'TENDENCIA' if res['is_trending'] else 'RANGO LATERAL'}</td>
             <td class="bg-dark">CONF. MTF (W)</td>
-            <td class="{'bg-green' if res['precio'] > res['ma2'] else 'bg-red'}">{'ALCISTA' if res['precio'] > res['ma2'] else 'BAJISTA'}</td>
-        </tr>
-        <tr>
-            <td class="bg-orange">ORACLE</td>
-            <td class="bg-dark">Estándar</td>
-            <td class="bg-dark">VALOR WT1</td>
-            <td class="bg-dark">{res['wt1']:.2f}</td>
-            <td class="bg-dark">ESTADO ORACLE</td>
-            <td class="{'bg-green' if res['wt1'] > res['wt2'] else 'bg-red'}">{'COMPRA' if res['wt1'] > res['wt2'] else 'VENTA'}</td>
-        </tr>
-        <tr>
-            <td class="bg-purple">PATRÓN VELA</td>
-            <td class="bg-dark">{res['patron']}</td>
-            <td class="bg-dark">RESEÑA TÉCNICA</td>
-            <td class="bg-dark">{res['desc_patron']}</td>
-            <td class="bg-dark">PTS PATRÓN</td>
-            <td class="bg-dark">{res['patron_pts']} Pts</td>
-        </tr>
-        <tr>
-            <td class="bg-navy">SCORE BOT</td>
-            <td class="{'bg-green' if res['score']>=65 else ('bg-red' if res['score']<=35 else 'bg-orange')}">{res['score']} / 100</td>
-            <td class="bg-dark">ESTADO RSI</td>
-            <td class="bg-dark">{'SOBRECOMPRA' if res['rsi']>70 else ('SOBREVENTA' if res['rsi']<30 else 'NEUTRO')}</td>
-            <td class="bg-dark">VALOR RSI</td>
-            <td class="bg-dark">{res['rsi']:.1f}</td>
-        </tr>
-        <tr>
-            <td class="bg-gold">SEÑAL BOT</td>
-            <td class="{'bg-green' if res['signal']=='LONG' else ('bg-red' if res['signal']=='SHORT' else 'bg-dark')}">{res['signal']}</td>
-            <td class="bg-dark">PRECIO ENTRADA</td>
-            <td class="bg-dark">${res['precio']:.2f}</td>
-            <td class="bg-dark">RATIO R:B REAL</td>
-            <td class="bg-dark">1 : 2.0</td>
-        </tr>
-        <tr>
-            <td class="bg-purple">GESTIÓN RIESGO</td>
-            <td class="bg-red">STOP LOSS (ATR)</td>
-            <td class="bg-red">${res['sl']:.2f} if res['sl'] else 'N/A'</td>
-            <td class="bg-green">TAKE PROFIT</td>
-            <td class="bg-green">${res['tp']:.2f} if res['tp'] else 'N/A'</td>
-            <td class="bg-dark">RIESGO: 2.5%</td>
-        </tr>
-    </table>
-    """
-    st.markdown(matriz_html, unsafe_allow_html=True)
+            <td class="{'bg-green' if res['precio'] > res['ma2'] else 'bg-red'}">{'ALCISTA' if res['precio'] > res['ma2'] else '
