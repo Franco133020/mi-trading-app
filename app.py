@@ -50,9 +50,11 @@ st.markdown("""
     </h2>
 """, unsafe_allow_html=True)
 
+# ==========================================
+# SECCIÓN 1: CONFIGURACIÓN GENERAL DEL ACTIVO
+# ==========================================
 st.sidebar.header("⚙️ Configuración del Activo")
 
-# Selección de Activo
 ticker_dict = {
     "McDonald's (MCD)": {"tv": "NYSE:MCD", "yf": "MCD"},
     "Grupo Financiero Galicia (GGAL)": {"tv": "BCBA:GGAL", "yf": "GGAL.BA"},
@@ -71,31 +73,81 @@ if ticker_custom.strip():
     tv_symbol = ticker_custom.strip().upper()
     yf_symbol = tv_symbol.split(":")[-1] + ".BA" if "BCBA" in tv_symbol else tv_symbol.split(":")[-1]
 
-# MAPEADO COMPLETO DE TEMPORALIDADES (TRADINGVIEW VS YFINANCE)
 timeframe_map = {
     "1 Minuto": {"tv": "1", "yf_interval": "1m", "yf_period": "7d"},
     "2 Minutos": {"tv": "2", "yf_interval": "2m", "yf_period": "30d"},
     "5 Minutos": {"tv": "5", "yf_interval": "5m", "yf_period": "30d"},
     "15 Minutos": {"tv": "15", "yf_interval": "15m", "yf_period": "60d"},
     "30 Minutos": {"tv": "30", "yf_interval": "30m", "yf_period": "60d"},
-    "45 Minutos": {"tv": "45", "yf_interval": "30m", "yf_period": "60d"},
     "1 Hora": {"tv": "60", "yf_interval": "1h", "yf_period": "730d"},
     "2 Horas": {"tv": "120", "yf_interval": "1h", "yf_period": "730d"},
-    "3 Horas": {"tv": "180", "yf_interval": "1h", "yf_period": "730d"},
     "4 Horas": {"tv": "240", "yf_interval": "1h", "yf_period": "730d"},
     "Diario (1D)": {"tv": "D", "yf_interval": "1d", "yf_period": "5y"},
     "Semanal (1W)": {"tv": "W", "yf_interval": "1wk", "yf_period": "10y"},
     "Mensual (1M)": {"tv": "M", "yf_interval": "1mo", "yf_period": "max"}
 }
 
-tf_sel = st.sidebar.selectbox("Temporalidad del Análisis:", list(timeframe_map.keys()), index=6)
+tf_sel = st.sidebar.selectbox("Temporalidad del Análisis:", list(timeframe_map.keys()), index=5)
 tv_tf_code = timeframe_map[tf_sel]["tv"]
 yf_interval = timeframe_map[tf_sel]["yf_interval"]
 yf_period = timeframe_map[tf_sel]["yf_period"]
 
-# CÁLCULO MATEMÁTICO INTEGRAL DE SCORING EN PYTHON
+# ==========================================
+# SECCIÓN 2: ENTRADAS DE DATOS (EXPANDERS)
+# ==========================================
+
+# 2.1 Medias Móviles
+with st.sidebar.expander("📈 Configuración Medias Móviles", expanded=False):
+    use_mm1 = st.checkbox("MM1 (8)", value=True)
+    len_mm1 = st.number_input("Período MM1", value=8, step=1)
+    
+    use_mm2 = st.checkbox("MM2 (21)", value=True)
+    len_mm2 = st.number_input("Período MM2", value=21, step=1)
+    
+    use_mm3 = st.checkbox("MM3 (50)", value=True)
+    len_mm3 = st.number_input("Período MM3", value=50, step=1)
+    
+    use_mm4 = st.checkbox("MM4 (100)", value=True)
+    len_mm4 = st.number_input("Período MM4", value=100, step=1)
+    
+    use_mm5 = st.checkbox("MM5 (200)", value=True)
+    len_mm5 = st.number_input("Período MM5", value=200, step=1)
+
+# 2.2 Optimización y Filtros
+with st.sidebar.expander("⚙️ Optimizaciones de Estrategia", expanded=False):
+    use_atr_risk = st.checkbox("Activar SL/TP Dinámico con ATR", value=True)
+    atr_len = st.number_input("Período ATR", value=14, step=1)
+    atr_mult_sl = st.number_input("Multiplicador ATR (Stop Loss)", value=2.0, step=0.1)
+    
+    use_adx_filter = st.checkbox("Activar Filtro ADX (Anti-Rango)", value=True)
+    adx_len = st.number_input("Período ADX", value=14, step=1)
+    adx_th = st.number_input("Umbral Mínimo ADX", value=20, step=1)
+    
+    use_rsi_filter = st.checkbox("Activar Filtro RSI", value=True)
+    rsi_ob_limit = st.number_input("Límite Máximo Compra (RSI)", value=70.0, step=1.0)
+    rsi_os_limit = st.number_input("Límite Mínimo Venta (RSI)", value=30.0, step=1.0)
+
+# 2.3 SuperTrend y PSAR
+with st.sidebar.expander("🎯 SuperTrend y Parabolic SAR", expanded=False):
+    use_st = st.checkbox("Activar SuperTrend", value=True)
+    st_period = st.number_input("Período SuperTrend", value=22, step=1)
+    st_mult = st.number_input("Multiplicador SuperTrend", value=3.0, step=0.1)
+    
+    use_psar = st.checkbox("Activar Parabolic SAR", value=True)
+
+# 2.4 Oracle Oscillator e Indicadores Auxiliares
+with st.sidebar.expander("🔮 Oracle & Gestión de Riesgo", expanded=False):
+    use_oracle = st.checkbox("Integrar Oracle Oscillator al Score", value=True)
+    fallback_ratio = st.number_input("Ratio R:B por defecto", value=2.0, step=0.1)
+
+# ==========================================
+# CÁLCULOS MATEMÁTICOS ADAPTATIVOS
+# ==========================================
 @st.cache_data(ttl=60)
-def calcular_matriz_pine(symbol_yf, interval, period):
+def calcular_matriz_pine(symbol_yf, interval, period, 
+                         m1, m2, m3, m4, m5,
+                         a_len, a_mult, adx_l, adx_t, rsi_ob, rsi_os,
+                         st_p, st_m, u_oracle, u_st, u_psar):
     try:
         df = yf.download(symbol_yf, period=period, interval=interval, progress=False)
         if df.empty or len(df) < 30:
@@ -106,47 +158,46 @@ def calcular_matriz_pine(symbol_yf, interval, period):
             
         close, high, low, open_p = df['Close'], df['High'], df['Low'], df['Open']
         
-        # 1. Medias Móviles Exponenciales (EMA)
-        ma1 = close.ewm(span=8, adjust=False).mean()
-        ma2 = close.ewm(span=21, adjust=False).mean()
-        ma3 = close.ewm(span=50, adjust=False).mean()
-        ma4 = close.ewm(span=100, adjust=False).mean()
-        ma5 = close.ewm(span=200, adjust=False).mean()
+        # 1. Medias Móviles Exponenciales Dinámicas
+        ma1 = close.ewm(span=m1, adjust=False).mean()
+        ma2 = close.ewm(span=m2, adjust=False).mean()
+        ma3 = close.ewm(span=m3, adjust=False).mean()
+        ma4 = close.ewm(span=m4, adjust=False).mean()
+        ma5 = close.ewm(span=m5, adjust=False).mean()
         
-        # 2. RSI (14)
+        # 2. RSI Dinámico
         delta = close.diff()
         gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
         loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         
-        # 3. ATR (14)
+        # 3. ATR Dinámico
         tr = pd.concat([high - low, (high - close.shift(1)).abs(), (low - close.shift(1)).abs()], axis=1).max(axis=1)
-        atr = tr.ewm(alpha=1/14, adjust=False).mean()
+        atr = tr.ewm(alpha=1/a_len, adjust=False).mean()
         
-        # 4. ADX (14)
+        # 4. ADX Dinámico
         up, down = high.diff(), -low.diff()
         plus_dm = pd.Series(np.where((up > down) & (up > 0), up, 0), index=df.index)
         minus_dm = pd.Series(np.where((down > up) & (down > 0), down, 0), index=df.index)
-        tr_smooth = tr.ewm(alpha=1/14, adjust=False).mean()
-        plus_di = 100 * (plus_dm.ewm(alpha=1/14, adjust=False).mean() / tr_smooth)
-        minus_di = 100 * (minus_dm.ewm(alpha=1/14, adjust=False).mean() / tr_smooth)
+        tr_smooth = tr.ewm(alpha=1/adx_l, adjust=False).mean()
+        plus_di = 100 * (plus_dm.ewm(alpha=1/adx_l, adjust=False).mean() / tr_smooth)
+        minus_di = 100 * (minus_dm.ewm(alpha=1/adx_l, adjust=False).mean() / tr_smooth)
         dx = (abs(plus_di - minus_di) / (plus_di + minus_di)) * 100
-        adx = dx.ewm(alpha=1/14, adjust=False).mean()
+        adx = dx.ewm(alpha=1/adx_l, adjust=False).mean()
         
-        # 5. Bandas de Bollinger y MACD
+        # 5. Bollinger y MACD
         bb_basis = close.rolling(window=20).mean()
         bb_dev = 2.0 * close.rolling(window=20).std()
         bb_upper, bb_lower = bb_basis + bb_dev, bb_basis - bb_dev
-        macd_line = close.ewm(span=8, adjust=False).mean() - close.ewm(span=21, adjust=False).mean()
+        macd_line = close.ewm(span=8, adjust=False).mean() - close.ewm(span=m2, adjust=False).mean()
         signal_line = macd_line.ewm(span=14, adjust=False).mean()
         
-        # 6. SuperTrend (22, 3.0)
-        st_mult, st_period = 3.0, 22
+        # 6. SuperTrend Dinámico
         hl2 = (high + low) / 2
-        st_atr = tr.ewm(alpha=1/st_period, adjust=False).mean()
-        up_band = hl2 - (st_mult * st_atr)
-        dn_band = hl2 + (st_mult * st_atr)
+        st_atr = tr.ewm(alpha=1/st_p, adjust=False).mean()
+        up_band = hl2 - (st_m * st_atr)
+        dn_band = hl2 + (st_m * st_atr)
         
         st_dir = np.zeros(len(df))
         for i in range(1, len(df)):
@@ -157,10 +208,9 @@ def calcular_matriz_pine(symbol_yf, interval, period):
             else:
                 st_dir[i] = st_dir[i-1]
         
-        # 7. Soportes y Resistencias Pivote
+        # 7. Soportes y Oracle
         sop_val = low.rolling(10).min().iloc[-1]
         
-        # 8. Oracle Oscillator
         hlc3 = (high + low + close) / 3
         esa = hlc3.ewm(span=10, adjust=False).mean()
         d = (hlc3 - esa).abs().ewm(span=10, adjust=False).mean()
@@ -168,7 +218,7 @@ def calcular_matriz_pine(symbol_yf, interval, period):
         ora_wt1 = ci.ewm(span=21, adjust=False).mean()
         ora_wt2 = ora_wt1.rolling(window=4).mean()
         
-        # 9. Patrón de Vela
+        # Patrón de Vela
         patron_nombre, patron_pts, desc_patron = "Sin patrón", 0, "-"
         if (close.iloc[-2] < open_p.iloc[-2]) and (close.iloc[-1] > open_p.iloc[-1]) and (close.iloc[-1] >= open_p.iloc[-2]):
             patron_nombre, patron_pts, desc_patron = "Envolvente Alc", 10, "Absorción compradora"
@@ -182,32 +232,37 @@ def calcular_matriz_pine(symbol_yf, interval, period):
         macd_l, sig_l = float(macd_line.iloc[-1]), float(signal_line.iloc[-1])
         bbm_l = float(bb_basis.iloc[-1])
         
-        # CÁLCULO TOTAL DE SCORE (100 PTS)
+        # SCORING DINÁMICO
         score = 0
-        if c_last > ma5_l: score += 10
-        if c_last > ma3_l: score += 5
-        if ma1_l > ma2_l: score += 5
-        if c_last > ma1_l: score += 5
+        if use_mm5 and c_last > ma5_l: score += 10
+        if use_mm3 and c_last > ma3_l: score += 5
+        if use_mm1 and use_mm2 and ma1_l > ma2_l: score += 5
+        if use_mm1 and c_last > ma1_l: score += 5
         if c_last > sop_val: score += 10
-        if st_dir[-1] < 0: score += 10
-        if c_last > ma2_l: score += 5
-        if rsi_l >= 50 and rsi_l <= 70: score += 10
+        if u_st and st_dir[-1] < 0: score += 10
+        if use_mm2 and c_last > ma2_l: score += 5
+        if rsi_l >= 50 and rsi_l <= rsi_ob: score += 10
         if macd_l > sig_l: score += 5
         if c_last > bbm_l: score += 5
-        if wt1_l > wt2_l: score += 10
-        if wt1_l > 0: score += 5
-        if wt1_l < 40.0: score += 5
+        
+        if u_oracle:
+            if wt1_l > wt2_l: score += 10
+            if wt1_l > 0: score += 5
+            if wt1_l < 40.0: score += 5
+            
         score += patron_pts
         
-        is_trending = adx_l >= 20
-        if score >= 75 and is_trending:
+        is_trending = (not use_adx_filter) or (adx_l >= adx_t)
+        rsi_ok = (rsi_l < rsi_ob)
+        
+        if score >= 75 and is_trending and rsi_ok:
             signal = "LONG"
-            sl = c_last - (atr_l * 2.0)
-            tp = c_last + ((c_last - sl) * 2.0)
+            sl = c_last - (atr_l * a_mult)
+            tp = c_last + ((c_last - sl) * fallback_ratio)
         elif score <= 25 and is_trending:
             signal = "SHORT"
-            sl = c_last + (atr_l * 2.0)
-            tp = c_last - ((sl - c_last) * 2.0)
+            sl = c_last + (atr_l * a_mult)
+            tp = c_last - ((sl - c_last) * fallback_ratio)
         else:
             signal = "ESPERA"
             sl, tp = None, None
@@ -223,9 +278,14 @@ def calcular_matriz_pine(symbol_yf, interval, period):
     except Exception:
         return None
 
-res = calcular_matriz_pine(yf_symbol, yf_interval, yf_period)
+res = calcular_matriz_pine(
+    yf_symbol, yf_interval, yf_period,
+    len_mm1, len_mm2, len_mm3, len_mm4, len_mm5,
+    atr_len, atr_mult_sl, adx_len, adx_th, rsi_ob_limit, rsi_os_limit,
+    st_period, st_mult, use_oracle, use_st, use_psar
+)
 
-# RENDER DEL GRÁFICO (SINCRONIZADO EN TIEMPO REAL CON LA TEMPORALIDAD)
+# RENDER DEL GRÁFICO DE TRADINGVIEW
 template_tv = """
 <div class="tradingview-widget-container" style="height:100%;width:100%">
   <div id="tradingview_chart" style="height:550px;width:100%"></div>
@@ -285,7 +345,7 @@ if res:
     t_ora = "COMPRA" if res['wt1'] > res['wt2'] else "VENTA"
 
     c_score = "bg-green" if res['score'] >= 75 else ("bg-red" if res['score'] <= 25 else "bg-orange")
-    t_rsi = "SOBRECOMPRA" if res['rsi'] > 70 else ("SOBREVENTA" if res['rsi'] < 30 else "NEUTRO")
+    t_rsi = "SOBRECOMPRA" if res['rsi'] > rsi_ob_limit else ("SOBREVENTA" if res['rsi'] < rsi_os_limit else "NEUTRO")
 
     c_sig = "bg-green" if res['signal'] == "LONG" else ("bg-red" if res['signal'] == "SHORT" else "bg-dark")
 
@@ -296,11 +356,11 @@ if res:
     <table class="matriz-table">
         <tr class="matriz-header">
             <td>MÉTRICA</td>
-            <td>MM 8</td>
-            <td>MM 21</td>
-            <td>MM 50</td>
-            <td>MM 100</td>
-            <td>MM 200</td>
+            <td>MM {len_mm1}</td>
+            <td>MM {len_mm2}</td>
+            <td>MM {len_mm3}</td>
+            <td>MM {len_mm4}</td>
+            <td>MM {len_mm5}</td>
         </tr>
         <tr>
             <td class="bg-dark">Tendencia</td>
@@ -348,7 +408,7 @@ if res:
             <td class="bg-dark">PRECIO ENTRADA</td>
             <td class="bg-dark">${res['precio']:.2f}</td>
             <td class="bg-dark">RATIO R:B REAL</td>
-            <td class="bg-dark">1 : 2.0</td>
+            <td class="bg-dark">1 : {fallback_ratio:.1f}</td>
         </tr>
         <tr>
             <td class="bg-purple">GESTIÓN RIESGO</td>
@@ -356,7 +416,7 @@ if res:
             <td class="bg-red">{sl_str}</td>
             <td class="bg-green">TAKE PROFIT</td>
             <td class="bg-green">{tp_str}</td>
-            <td class="bg-dark">RIESGO: 2.0x ATR</td>
+            <td class="bg-dark">RIESGO: {atr_mult_sl:.1f}x ATR</td>
         </tr>
     </table>
     """
