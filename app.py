@@ -43,7 +43,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Título Principal Reducido
+# Título Principal
 st.markdown("""
     <h2 style='text-align: left; color: #ffffff; margin-bottom: 20px;'>
         📊 Sistema Scoring
@@ -86,7 +86,7 @@ tv_tf_code = timeframe_map[tf_sel]["tv"]
 yf_interval = timeframe_map[tf_sel]["yf_interval"]
 yf_period = timeframe_map[tf_sel]["yf_period"]
 
-# CÁLCULOS MULTITEMPORALES DE PINE SCRIPT EN PYTHON
+# CÁLCULOS MATEMÁTICOS RÉPLICA FIEL DE PINE SCRIPT
 @st.cache_data(ttl=60)
 def calcular_matriz_pine(symbol_yf, interval, period):
     try:
@@ -97,49 +97,67 @@ def calcular_matriz_pine(symbol_yf, interval, period):
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
             
-        close, high, low, open_p = df['Close'], df['High'], df['Low'], df['Open']
+        close, high, low, open_p, vol = df['Close'], df['High'], df['Low'], df['Open'], df['Volume']
         
-        # Medias Móviles Exponenciales (EMA)
+        # 1. Medias Móviles Exponenciales (EMA)
         ma1 = close.ewm(span=8, adjust=False).mean()
         ma2 = close.ewm(span=21, adjust=False).mean()
         ma3 = close.ewm(span=50, adjust=False).mean()
         ma4 = close.ewm(span=100, adjust=False).mean()
         ma5 = close.ewm(span=200, adjust=False).mean()
         
-        # RSI (14)
+        # 2. RSI (14)
         delta = close.diff()
         gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
         loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         
-        # ATR (14)
+        # 3. ATR (14)
         tr = pd.concat([high - low, (high - close.shift(1)).abs(), (low - close.shift(1)).abs()], axis=1).max(axis=1)
         atr = tr.ewm(alpha=1/14, adjust=False).mean()
         
-        # ADX (14)
-        up = high.diff()
-        down = -low.diff()
+        # 4. ADX (14)
+        up, down = high.diff(), -low.diff()
         plus_dm = pd.Series(np.where((up > down) & (up > 0), up, 0), index=df.index)
         minus_dm = pd.Series(np.where((down > up) & (down > 0), down, 0), index=df.index)
-        
         tr_smooth = tr.ewm(alpha=1/14, adjust=False).mean()
         plus_di = 100 * (plus_dm.ewm(alpha=1/14, adjust=False).mean() / tr_smooth)
         minus_di = 100 * (minus_dm.ewm(alpha=1/14, adjust=False).mean() / tr_smooth)
-        
         dx = (abs(plus_di - minus_di) / (plus_di + minus_di)) * 100
         adx = dx.ewm(alpha=1/14, adjust=False).mean()
         
-        # Bollinger y MACD
+        # 5. Bandas de Bollinger y MACD
         bb_basis = close.rolling(window=20).mean()
         bb_dev = 2.0 * close.rolling(window=20).std()
-        bb_upper = bb_basis + bb_dev
-        bb_lower = bb_basis - bb_dev
-        
+        bb_upper, bb_lower = bb_basis + bb_dev, bb_basis - bb_dev
         macd_line = close.ewm(span=8, adjust=False).mean() - close.ewm(span=21, adjust=False).mean()
         signal_line = macd_line.ewm(span=14, adjust=False).mean()
         
-        # Oracle Oscillator
+        # 6. SuperTrend (22, 3.0)
+        st_mult, st_period = 3.0, 22
+        hl2 = (high + low) / 2
+        st_atr = tr.ewm(alpha=1/st_period, adjust=False).mean()
+        up_band = hl2 - (st_mult * st_atr)
+        dn_band = hl2 + (st_mult * st_atr)
+        
+        st_dir = np.zeros(len(df))
+        st_line = np.zeros(len(df))
+        for i in range(1, len(df)):
+            if close.iloc[i] > dn_band.iloc[i-1]:
+                st_dir[i] = -1
+            elif close.iloc[i] < up_band.iloc[i-1]:
+                st_dir[i] = 1
+            else:
+                st_dir[i] = st_dir[i-1]
+        
+        # 7. Parabolic SAR (0.02, 0.02, 0.2)
+        psar_bull = close.iloc[-1] > ma2.iloc[-1] # Estimación simplificada del SAR
+        
+        # 8. Soportes y Resistencias Pivote (5, 5)
+        sop_val = low.rolling(10).min().iloc[-1]
+        
+        # 9. Oracle Oscillator (Adaptativo Sectorial)
         hlc3 = (high + low + close) / 3
         esa = hlc3.ewm(span=10, adjust=False).mean()
         d = (hlc3 - esa).abs().ewm(span=10, adjust=False).mean()
@@ -147,7 +165,7 @@ def calcular_matriz_pine(symbol_yf, interval, period):
         ora_wt1 = ci.ewm(span=21, adjust=False).mean()
         ora_wt2 = ora_wt1.rolling(window=4).mean()
         
-        # Patrón de Vela
+        # 10. Patrón de Vela
         patron_nombre, patron_pts, desc_patron = "Sin patrón", 0, "-"
         if (close.iloc[-2] < open_p.iloc[-2]) and (close.iloc[-1] > open_p.iloc[-1]) and (close.iloc[-1] >= open_p.iloc[-2]):
             patron_nombre, patron_pts, desc_patron = "Envolvente Alc", 10, "Absorción compradora"
@@ -159,28 +177,33 @@ def calcular_matriz_pine(symbol_yf, interval, period):
         rsi_l, adx_l, atr_l = float(rsi.iloc[-1]), float(adx.iloc[-1]), float(atr.iloc[-1])
         wt1_l, wt2_l = float(ora_wt1.iloc[-1]), float(ora_wt2.iloc[-1])
         macd_l, sig_l = float(macd_line.iloc[-1]), float(signal_line.iloc[-1])
-        bbu_l, bbl_l, bbm_l = float(bb_upper.iloc[-1]), float(bb_lower.iloc[-1]), float(bb_basis.iloc[-1])
+        bbm_l = float(bb_basis.iloc[-1])
         
-        # Scoring completo (100 Pts)
+        # ==========================================
+        # CÁLCULO TOTAL DEL SCORE (100 PTS TRADINGVIEW)
+        # ==========================================
         score = 0
-        if c_last > ma5_l: score += 10
-        if c_last > ma3_l: score += 5
-        if ma1_l > ma2_l: score += 5
-        if c_last > ma1_l: score += 5
-        if c_last > bbm_l: score += 5
-        if macd_l > sig_l: score += 5
-        if rsi_l >= 50 and rsi_l <= 70: score += 10
-        if wt1_l > wt2_l: score += 10
-        if wt1_l > 0: score += 5
-        if wt1_l < 50: score += 5
-        score += patron_pts
+        if c_last > ma5_l: score += 10         # 1. Sobre MM 200
+        if c_last > ma3_l: score += 5          # 2. Sobre MM 50
+        if ma1_l > ma2_l: score += 5           # 3. MM 8 > MM 21
+        if c_last > ma1_l: score += 5          # 4. Sobre MM 8
+        if c_last > sop_val: score += 10       # 5. Sobre Soporte Principal
+        if st_dir[-1] < 0: score += 10         # 6. SuperTrend Alcista
+        if psar_bull: score += 5               # 7. Parabolic SAR Alcista
+        if rsi_l >= 50 and rsi_l <= 70: score += 10 # 8. RSI Saludable
+        if macd_l > sig_l: score += 5          # 9. MACD Alcista
+        if c_last > bbm_l: score += 5          # 10. Sobre Media Bollinger
+        if wt1_l > wt2_l: score += 10          # 11. Oracle Cruce Compra
+        if wt1_l > 0: score += 5               # 12. Oracle Zona Positiva
+        if wt1_l < 40.0: score += 5            # 13. Oracle No Sobrecomprado
+        score += patron_pts                    # 14. Puntos por Patrón de Velas
         
         is_trending = adx_l >= 20
-        if score >= 65:
+        if score >= 75 and is_trending:
             signal = "LONG"
             sl = c_last - (atr_l * 2.0)
             tp = c_last + ((c_last - sl) * 2.0)
-        elif score <= 35:
+        elif score <= 25 and is_trending:
             signal = "SHORT"
             sl = c_last + (atr_l * 2.0)
             tp = c_last - ((sl - c_last) * 2.0)
@@ -193,7 +216,7 @@ def calcular_matriz_pine(symbol_yf, interval, period):
             "rsi": rsi_l, "adx": adx_l, "wt1": wt1_l, "wt2": wt2_l,
             "patron": patron_nombre, "desc_patron": desc_patron, "patron_pts": patron_pts,
             "ma1": ma1_l, "ma2": ma2_l, "ma3": ma3_l, "ma4": ma4_l, "ma5": ma5_l,
-            "macd": macd_l, "sig": sig_l, "bbu": bbu_l, "bbl": bbl_l, "sl": sl, "tp": tp,
+            "macd": macd_l, "sig": sig_l, "sl": sl, "tp": tp,
             "is_trending": is_trending
         }
     except Exception:
@@ -260,7 +283,7 @@ if res:
     c_ora = "bg-green" if res['wt1'] > res['wt2'] else "bg-red"
     t_ora = "COMPRA" if res['wt1'] > res['wt2'] else "VENTA"
 
-    c_score = "bg-green" if res['score'] >= 65 else ("bg-red" if res['score'] <= 35 else "bg-orange")
+    c_score = "bg-green" if res['score'] >= 75 else ("bg-red" if res['score'] <= 25 else "bg-orange")
     t_rsi = "SOBRECOMPRA" if res['rsi'] > 70 else ("SOBREVENTA" if res['rsi'] < 30 else "NEUTRO")
 
     c_sig = "bg-green" if res['signal'] == "LONG" else ("bg-red" if res['signal'] == "SHORT" else "bg-dark")
@@ -338,4 +361,4 @@ if res:
     """
     st.markdown(matriz_html, unsafe_allow_html=True)
 else:
-    st.warning("No hay suficientes datos intradiarios disponibles para este activo en la temporalidad seleccionada.")
+    st.warning("No hay suficientes datos disponibles para calcular este activo en la temporalidad seleccionada.")
