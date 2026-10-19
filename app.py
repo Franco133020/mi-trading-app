@@ -55,12 +55,105 @@ st.markdown("""
 # ==========================================
 if "activos_dict" not in st.session_state:
     st.session_state.activos_dict = {
-        "McDonald's (MCD)": {"tv": "NYSE:MCD", "yf": "MCD", "sector": "Consumo / Defensivas"},
-        "Apple Inc. (AAPL)": {"tv": "NASDAQ:AAPL", "yf": "AAPL", "sector": "Tecnología"},
-        "NVIDIA Corp. (NVDA)": {"tv": "NASDAQ:NVDA", "yf": "NVDA", "sector": "Tecnología"},
-        "Grupo Financiero Galicia (GGAL)": {"tv": "BCBA:GGAL", "yf": "GGAL.BA", "sector": "Bancos y Finanzas"},
-        "YPF S.A. (YPFD)": {"tv": "BCBA:YPFD", "yf": "YPFD.BA", "sector": "Energía"},
-        "Bitcoin / USDT": {"tv": "BINANCE:BTCUSDT", "yf": "BTC-USD", "sector": "Criptomonedas"}
+        # --- ÍNDICES ---
+        "S&P 500 Index (SPX)": {"tv": "SP:SPX", "yf": "^GSPC", "categoria": "Indices"},
+        "S&P 500 Equal Weight (RSP)": {"tv": "AMEX:RSP", "yf": "RSP", "categoria": "Indices"},
+
+        # --- SECTORES ---
+        "Biotechnology ETF (IBB)": {"tv": "NASDAQ:IBB", "yf": "IBB", "categoria": "Sectores"},
+        "Software ETF (IGV)": {"tv": "BATS:IGV", "yf": "IGV", "categoria": "Sectores"},
+        "Cybersecurity ETF (IHAK)": {"tv": "NYSEARCA:IHAK", "yf": "IHAK", "categoria": "Sectores"},
+        "Cybersecurity ETF (CIBR)": {"tv": "NASDAQ:CIBR", "yf": "CIBR", "categoria": "Sectores"},
+        "U.S. Aerospace & Defense (ITA)": {"tv": "CBOE:ITA", "yf": "ITA", "categoria": "Sectores"},
+        "Telecom ETF (IYZ)": {"tv": "NYSEARCA:IYZ", "yf": "IYZ", "categoria": "Sectores"},
+        "Semiconductor ETF (SOXX)": {"tv": "NASDAQ:SOXX", "yf": "SOXX", "categoria": "Sectores"},
+        "Materials Select Sector (XLB)": {"tv": "AMEX:XLB", "yf": "XLB", "categoria": "Sectores"},
+        "Communication Services (XLC)": {"tv": "AMEX:XLC", "yf": "XLC", "categoria": "Sectores"},
+        "Energy Select Sector (XLE)": {"tv": "AMEX:XLE", "yf": "XLE", "categoria": "Sectores"},
+        "Financial Select Sector (XLF)": {"tv": "AMEX:XLF", "yf": "XLF", "categoria": "Sectores"},
+        "Industrial Select Sector (XLI)": {"tv": "AMEX:XLI", "yf": "XLI", "categoria": "Sectores"},
+        "Technology Select Sector (XLK)": {"tv": "AMEX:XLK", "yf": "XLK", "categoria": "Sectores"},
+
+        # --- INTERNACIONAL ---
+        "Nasdaq 100 (QQQ)": {"tv": "NASDAQ:QQQ", "yf": "QQQ", "categoria": "Internacional"},
+        "Apple Inc. (AAPL)": {"tv": "NASDAQ:AAPL", "yf": "AAPL", "categoria": "Internacional"},
+        "Amazon.com (AMZN)": {"tv": "NASDAQ:AMZN", "yf": "AMZN", "categoria": "Internacional"},
+        "Alphabet / Google (GOOGL)": {"tv": "NASDAQ:GOOGL", "yf": "GOOGL", "categoria": "Internacional"},
+        "Microsoft (MSFT)": {"tv": "NASDAQ:MSFT", "yf": "MSFT", "categoria": "Internacional"},
+        "Meta Platforms (META)": {"tv": "NASDAQ:META", "yf": "META", "categoria": "Internacional"},
+        "Tesla (TSLA)": {"tv": "NASDAQ:TSLA", "yf": "TSLA", "categoria": "Internacional"},
+        "NVIDIA (NVDA)": {"tv": "NASDAQ:NVDA", "yf": "NVDA", "categoria": "Internacional"},
+        "Intel (INTC)": {"tv": "NASDAQ:INTC", "yf": "INTC", "categoria": "Internacional"},
+        "Broadcom (AVGO)": {"tv": "NASDAQ:AVGO", "yf": "AVGO", "categoria": "Internacional"},
+        "ASML Holding (ASML)": {"tv": "NASDAQ:ASML", "yf": "ASML", "categoria": "Internacional"},
+        "Taiwan Semiconductor (TSM)": {"tv": "NYSE:TSM", "yf": "TSM", "categoria": "Internacional"},
+        "Advanced Micro Devices (AMD)": {"tv": "NASDAQ:AMD", "yf": "AMD", "categoria": "Internacional"},
+        "Marvell Technology (MRVL)": {"tv": "NASDAQ:MRVL", "yf": "MRVL", "categoria": "Internacional"},
+        "Arm Holdings (ARM)": {"tv": "NASDAQ:ARM", "yf": "ARM", "categoria": "Internacional"},
+        "Micron Technology (MU)": {"tv": "NASDAQ:MU", "yf": "MU", "categoria": "Internacional"},
+        "Lam Research (LRCX)": {"tv": "NASDAQ:LRCX", "yf": "LRCX", "categoria": "Internacional"},
+        "Oracle (ORCL)": {"tv": "NYSE:ORCL", "yf": "ORCL", "categoria": "Internacional"},
+        "IBM": {"tv": "NYSE:IBM", "yf": "IBM", "categoria": "Internacional"},
+        "Spotify (SPOT)": {"tv": "NYSE:SPOT", "yf": "SPOT", "categoria": "Internacional"},
+        "Salesforce (CRM)": {"tv": "NYSE:CRM", "yf": "CRM", "categoria": "Internacional"},
+        "Accenture (ACN)": {"tv": "NYSE:ACN", "yf": "ACN", "categoria": "Internacional"},
+        "Adobe (ADBE)": {"tv": "NASDAQ:ADBE", "yf": "ADBE", "categoria": "Internacional"},
+        "Palantir (PLTR)": {"tv": "NYSE:PLTR", "yf": "PLTR", "categoria": "Internacional"},
+        "Netflix (NFLX)": {"tv": "NASDAQ:NFLX", "yf": "NFLX", "categoria": "Internacional"},
+        "Block / Square (SQ)": {"tv": "NYSE:SQ", "yf": "SQ", "categoria": "Internacional"},
+        "ADP": {"tv": "NASDAQ:ADP", "yf": "ADP", "categoria": "Internacional"},
+        "ServiceNow (NOW)": {"tv": "NYSE:NOW", "yf": "NOW", "categoria": "Internacional"},
+        "Globant (GLOB)": {"tv": "NYSE:GLOB", "yf": "GLOB", "categoria": "Internacional"},
+        "SAP SE": {"tv": "NYSE:SAP", "yf": "SAP", "categoria": "Internacional"},
+        "Palo Alto Networks (PANW)": {"tv": "NASDAQ:PANW", "yf": "PANW", "categoria": "Internacional"},
+        "CrowdStrike (CRWD)": {"tv": "NASDAQ:CRWD", "yf": "CRWD", "categoria": "Internacional"},
+        "Iris Energy (IREN)": {"tv": "NASDAQ:IREN", "yf": "IREN", "categoria": "Internacional"},
+        "General Electric (GE)": {"tv": "NYSE:GE", "yf": "GE", "categoria": "Internacional"},
+        "Berkshire Hathaway (BRK.B)": {"tv": "NYSE:BRK.B", "yf": "BRK-B", "categoria": "Internacional"},
+        "Goldman Sachs (GS)": {"tv": "NYSE:GS", "yf": "GS", "categoria": "Internacional"},
+        "JPMorgan Chase (JPM)": {"tv": "NYSE:JPM", "yf": "JPM", "categoria": "Internacional"},
+        "Robinhood (HOOD)": {"tv": "NASDAQ:HOOD", "yf": "HOOD", "categoria": "Internacional"},
+        "Visa (V)": {"tv": "NYSE:V", "yf": "V", "categoria": "Internacional"},
+        "Mastercard (MA)": {"tv": "NYSE:MA", "yf": "MA", "categoria": "Internacional"},
+        "MercadoLibre (MELI)": {"tv": "NASDAQ:MELI", "yf": "MELI", "categoria": "Internacional"},
+        "Walmart (WMT)": {"tv": "NYSE:WMT", "yf": "WMT", "categoria": "Internacional"},
+        "Target (TGT)": {"tv": "NYSE:TGT", "yf": "TGT", "categoria": "Internacional"},
+        "Caterpillar (CAT)": {"tv": "NYSE:CAT", "yf": "CAT", "categoria": "Internacional"},
+        "AST SpaceMobile (ASTS)": {"tv": "NASDAQ:ASTS", "yf": "ASTS", "categoria": "Internacional"},
+        "Ondas Holdings (ONDS)": {"tv": "NASDAQ:ONDS", "yf": "ONDS", "categoria": "Internacional"},
+        "Arista Networks (ANET)": {"tv": "NYSE:ANET", "yf": "ANET", "categoria": "Internacional"},
+        "Corning (GLW)": {"tv": "NYSE:GLW", "yf": "GLW", "categoria": "Internacional"},
+        "iShares Bitcoin Trust (IBIT)": {"tv": "NASDAQ:IBIT", "yf": "IBIT", "categoria": "Internacional"},
+        "MicroStrategy (MSTR)": {"tv": "NASDAQ:MSTR", "yf": "MSTR", "categoria": "Internacional"},
+        "Coinbase (COIN)": {"tv": "NASDAQ:COIN", "yf": "COIN", "categoria": "Internacional"},
+        "Riot Platforms (RIOT)": {"tv": "NASDAQ:RIOT", "yf": "RIOT", "categoria": "Internacional"},
+        "Hut 8 Mining (HUT)": {"tv": "NASDAQ:HUT", "yf": "HUT", "categoria": "Internacional"},
+        "Eli Lilly (LLY)": {"tv": "NYSE:LLY", "yf": "LLY", "categoria": "Internacional"},
+        "Novo Nordisk (NVO)": {"tv": "NYSE:NVO", "yf": "NVO", "categoria": "Internacional"},
+        "American Airlines (AAL)": {"tv": "NASDAQ:AAL", "yf": "AAL", "categoria": "Internacional"},
+        "Uber (UBER)": {"tv": "NYSE:UBER", "yf": "UBER", "categoria": "Internacional"},
+        "SPDR Gold Shares (GLD)": {"tv": "AMEX:GLD", "yf": "GLD", "categoria": "Internacional"},
+        "iShares Silver Trust (SLV)": {"tv": "AMEX:SLV", "yf": "SLV", "categoria": "Internacional"},
+        "Global X Copper Miners (COPX)": {"tv": "NYSEARCA:COPX", "yf": "COPX", "categoria": "Internacional"},
+        "Bitcoin / USDT": {"tv": "BINANCE:BTCUSDT", "yf": "BTC-USD", "categoria": "Internacional"},
+        "Ethereum / USDT": {"tv": "BINANCE:ETHUSDT", "yf": "ETH-USD", "categoria": "Internacional"},
+
+        # --- MERCADO ARGENTINO (BCBA) ---
+        "Índice Merval": {"tv": "BCBA:IMV", "yf": "^MERV", "categoria": "Mercado Argentino"},
+        "YPF S.A. (YPFD)": {"tv": "BCBA:YPFD", "yf": "YPFD.BA", "categoria": "Mercado Argentino"},
+        "Pampa Energía (PAMP)": {"tv": "BCBA:PAMP", "yf": "PAMP.BA", "categoria": "Mercado Argentino"},
+        "Grupo Supervielle (SUPV)": {"tv": "BCBA:SUPV", "yf": "SUPV.BA", "categoria": "Mercado Argentino"},
+        "Grupo Financiero Galicia (GGAL)": {"tv": "BCBA:GGAL", "yf": "GGAL.BA", "categoria": "Mercado Argentino"},
+        "Banco Macro (BMA)": {"tv": "BCBA:BMA", "yf": "BMA.BA", "categoria": "Mercado Argentino"},
+        "BBVA Argentina (BBAR)": {"tv": "BCBA:BBAR", "yf": "BBAR.BA", "categoria": "Mercado Argentino"},
+        "Central Puerto (CEPU)": {"tv": "BCBA:CEPU", "yf": "CEPU.BA", "categoria": "Mercado Argentino"},
+        "Transportadora de Gas del Sur (TGSU2)": {"tv": "BCBA:TGSU2", "yf": "TGSU2.BA", "categoria": "Mercado Argentino"},
+        "Ternium Argentina (TXAR)": {"tv": "BCBA:TXAR", "yf": "TXAR.BA", "categoria": "Mercado Argentino"},
+        "Aluar (ALUA)": {"tv": "BCBA:ALUA", "yf": "ALUA.BA", "categoria": "Mercado Argentino"},
+        "Loma Negra (LOMA)": {"tv": "BCBA:LOMA", "yf": "LOMA.BA", "categoria": "Mercado Argentino"},
+        "Sociedad Comercial del Plata (COME)": {"tv": "BCBA:COME", "yf": "COME.BA", "categoria": "Mercado Argentino"},
+        "Transener (TRAN)": {"tv": "BCBA:TRAN", "yf": "TRAN.BA", "categoria": "Mercado Argentino"},
+        "Cresud (CRES)": {"tv": "BCBA:CRES", "yf": "CRES.BA", "categoria": "Mercado Argentino"}
     }
 
 # ==========================================
@@ -68,48 +161,46 @@ if "activos_dict" not in st.session_state:
 # ==========================================
 st.sidebar.header("⚙️ Configuración del Activo")
 
-# 1.1 Muestra de activos clasificados por sector
-filtrar_sector = st.sidebar.checkbox("Filtrar activos por Sector", value=False)
-
 activos_disponibles = st.session_state.activos_dict
 
-if filtrar_sector:
-    sectores_unicos = sorted(list(set(v["sector"] for v in activos_disponibles.values())))
-    sector_sel = st.sidebar.selectbox("Seleccionar Sector:", sectores_unicos)
-    activos_filtrados = {k: v for k, v in activos_disponibles.items() if v["sector"] == sector_sel}
+# Filtro por Categoría / Sector
+filtrar_cat = st.sidebar.checkbox("Filtrar por Categoría / Sector", value=False)
+
+if filtrar_cat:
+    categorias_unicas = sorted(list(set(v["categoria"] for v in activos_disponibles.values())))
+    cat_sel = st.sidebar.selectbox("Seleccionar Categoría:", categorias_unicas)
+    activos_filtrados = {k: v for k, v in activos_disponibles.items() if v["categoria"] == cat_sel}
 else:
     activos_filtrados = activos_disponibles
 
-# Etiqueta con sector incluido si se ven todos
-lista_opciones = [f"[{v['sector']}] {k}" if not filtrar_sector else k for k, v in activos_filtrados.items()]
+lista_opciones = [f"[{v['categoria']}] {k}" if not filtrar_cat else k for k, v in activos_filtrados.items()]
 opcion_seleccionada = st.sidebar.selectbox("Seleccionar Activo:", lista_opciones)
 
-# Obtención de claves seleccionadas
 nombre_limpio = opcion_seleccionada.split("] ")[-1] if "]" in opcion_seleccionada else opcion_seleccionada
 tv_symbol = activos_disponibles[nombre_limpio]["tv"]
 yf_symbol = activos_disponibles[nombre_limpio]["yf"]
 
-# 1.2 Gestión dinamica: Agregar / Eliminar
+# Agregar / Eliminar Activos
 with st.sidebar.expander("➕ / ➖ Gestionar Lista de Activos", expanded=False):
     tab_add, tab_del = st.tabs(["Agregar Activo", "Eliminar Activo"])
     
     with tab_add:
-        new_name = st.text_input("Nombre / Nombre corto:", placeholder="Ej: Microsoft (MSFT)")
-        new_tv = st.text_input("Ticker TradingView:", placeholder="Ej: NASDAQ:MSFT")
-        new_yf = st.text_input("Ticker Yahoo Finance:", placeholder="Ej: MSFT")
-        new_sec = st.text_input("Sector:", value="General")
+        new_name = st.text_input("Nombre / Ticker Visible:", placeholder="Ej: Meta (META)")
+        new_tv = st.text_input("Ticker TradingView:", placeholder="Ej: NASDAQ:META")
+        new_yf = st.text_input("Ticker Yahoo Finance:", placeholder="Ej: META")
+        new_cat = st.selectbox("Categoría / Sector:", ["Indices", "Sectores", "Internacional", "Mercado Argentino", "Otros"])
         
         if st.button("Guardar Nuevo Activo"):
             if new_name.strip() and new_tv.strip() and new_yf.strip():
                 st.session_state.activos_dict[new_name.strip()] = {
                     "tv": new_tv.strip().upper(),
                     "yf": new_yf.strip().upper(),
-                    "sector": new_sec.strip()
+                    "categoria": new_cat
                 }
                 st.success(f"¡{new_name} agregado con éxito!")
                 st.rerun()
             else:
-                st.error("Por favor completa todos los campos del activo.")
+                st.error("Por favor completa todos los campos requeridos.")
                 
     with tab_del:
         activo_a_borrar = st.selectbox("Activo a eliminar:", list(st.session_state.activos_dict.keys()), key="del_sel")
@@ -121,7 +212,7 @@ with st.sidebar.expander("➕ / ➖ Gestionar Lista de Activos", expanded=False)
             else:
                 st.warning("Debes mantener al menos un activo en la lista.")
 
-# 1.3 Selector de Temporalidades
+# Selector de Temporalidades
 timeframe_map = {
     "1 Minuto": {"tv": "1", "yf_interval": "1m", "yf_period": "7d"},
     "2 Minutos": {"tv": "2", "yf_interval": "2m", "yf_period": "30d"},
