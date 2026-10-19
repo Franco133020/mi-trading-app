@@ -124,14 +124,16 @@ with st.sidebar.expander("🎯 Filtros y Gestión de Riesgo", expanded=False):
 def cargar_y_calcular_datos(symbol, interval, period, m1, m2, m3, m4, m5, st_p, st_m):
     df = yf.download(symbol, period=period, interval=interval, progress=False)
     if df.empty or len(df) < 30:
-        return None, None
+        return None
         
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
         
     df = df.reset_index()
     time_col = 'Datetime' if 'Datetime' in df.columns else 'Date'
-    df['time'] = df[time_col].dt.strftime('%Y-%m-%d %H:%M:%S')
+    
+    # FORMATO UNIX TIMESTAMP EN SEGUNDOS PARA LIGHTWEIGHT CHARTS
+    df['time'] = (df[time_col].astype('int64') // 10**9)
     
     close, high, low, open_p = df['Close'], df['High'], df['Low'], df['Open']
     
@@ -210,7 +212,7 @@ if df_data is not None:
     chart_candles = []
     for _, row in df_data.iterrows():
         chart_candles.append({
-            "time": row['time'],
+            "time": int(row['time']),
             "open": float(row['Open']),
             "high": float(row['High']),
             "low": float(row['Low']),
@@ -229,9 +231,8 @@ if df_data is not None:
         }
     }]
     
-    # Agregar Medias Móviles dinámicamente según selección en Sidebar
     def add_line_series(column_name, color_hex, title_name):
-        line_data = [{"time": row['time'], "value": float(row[column_name])} for _, row in df_data.iterrows() if not np.isnan(row[column_name])]
+        line_data = [{"time": int(row['time']), "value": float(row[column_name])} for _, row in df_data.iterrows() if not np.isnan(row[column_name])]
         series_list.append({
             "type": "Line",
             "data": line_data,
@@ -264,7 +265,6 @@ if df_data is not None:
         "height": 500
     }
     
-    # Renderizado del gráfico interactivo dinámico
     renderLightweightCharts([{"chart": chart_options, "series": series_list}])
 
 st.markdown("---")
