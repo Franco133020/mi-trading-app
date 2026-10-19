@@ -169,4 +169,147 @@ def calcular_matriz_pine(symbol_yf):
             "rsi": rsi_l, "adx": adx_l, "wt1": wt1_l, "wt2": wt2_l,
             "patron": patron_nombre, "desc_patron": desc_patron, "patron_pts": patron_pts,
             "ma1": ma1_l, "ma2": ma2_l, "ma3": ma3_l, "ma4": ma4_l, "ma5": ma5_l,
-            "macd": macd_l,
+            "macd": macd_l, "sig": sig_l, "bbu": bbu_l, "bbl": bbl_l, "sl": sl, "tp": tp,
+            "is_trending": is_trending
+        }
+    except Exception:
+        return None
+
+res = calcular_matriz_pine(yf_symbol)
+
+# RENDER DEL GRÁFICO
+template_tv = """
+<div class="tradingview-widget-container" style="height:100%;width:100%">
+  <div id="tradingview_chart" style="height:550px;width:100%"></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script type="text/javascript">
+    new TradingView.widget({
+      "autosize": true,
+      "symbol": "SYMBOL_PLACEHOLDER",
+      "interval": "60",
+      "timezone": "America/Argentina/Jujuy",
+      "theme": "dark",
+      "style": "1",
+      "locale": "es",
+      "toolbar_bg": "#1e222d",
+      "enable_publishing": false,
+      "allow_symbol_change": true,
+      "container_id": "tradingview_chart",
+      "hide_side_toolbar": false,
+      "studies": [
+        "RSI@tv-basicstudies",
+        "MACD@tv-basicstudies",
+        "MASimple@tv-basicstudies"
+      ]
+    });
+  </script>
+</div>
+"""
+tradingview_html = template_tv.replace("SYMBOL_PLACEHOLDER", tv_symbol)
+components.html(tradingview_html, height=560)
+
+st.markdown("---")
+
+# RENDER DE LA TABLA MATRICIAL DE 6 COLUMNAS
+st.subheader("📑 Tabla Matricial del Sistema de Trading")
+
+if res:
+    c_ma1 = "bg-green" if res['precio'] > res['ma1'] else "bg-red"
+    t_ma1 = "ALCISTA" if res['precio'] > res['ma1'] else "BAJISTA"
+    
+    c_ma2 = "bg-green" if res['precio'] > res['ma2'] else "bg-red"
+    t_ma2 = "ALCISTA" if res['precio'] > res['ma2'] else "BAJISTA"
+    
+    c_ma3 = "bg-green" if res['precio'] > res['ma3'] else "bg-red"
+    t_ma3 = "ALCISTA" if res['precio'] > res['ma3'] else "BAJISTA"
+    
+    c_ma4 = "bg-green" if res['precio'] > res['ma4'] else "bg-red"
+    t_ma4 = "ALCISTA" if res['precio'] > res['ma4'] else "BAJISTA"
+    
+    c_ma5 = "bg-green" if res['precio'] > res['ma5'] else "bg-red"
+    t_ma5 = "ALCISTA" if res['precio'] > res['ma5'] else "BAJISTA"
+
+    c_adx = "bg-green" if res['is_trending'] else "bg-red"
+    c_reg = "bg-teal" if res['is_trending'] else "bg-orange"
+    t_reg = "TENDENCIA" if res['is_trending'] else "RANGO LATERAL"
+
+    c_ora = "bg-green" if res['wt1'] > res['wt2'] else "bg-red"
+    t_ora = "COMPRA" if res['wt1'] > res['wt2'] else "VENTA"
+
+    c_score = "bg-green" if res['score'] >= 65 else ("bg-red" if res['score'] <= 35 else "bg-orange")
+    t_rsi = "SOBRECOMPRA" if res['rsi'] > 70 else ("SOBREVENTA" if res['rsi'] < 30 else "NEUTRO")
+
+    c_sig = "bg-green" if res['signal'] == "LONG" else ("bg-red" if res['signal'] == "SHORT" else "bg-dark")
+
+    sl_str = f"${res['sl']:.2f}" if res['sl'] is not None else "N/A"
+    tp_str = f"${res['tp']:.2f}" if res['tp'] is not None else "N/A"
+
+    matriz_html = f"""
+    <table class="matriz-table">
+        <tr class="matriz-header">
+            <td>MÉTRICA</td>
+            <td>MM 8</td>
+            <td>MM 21</td>
+            <td>MM 50</td>
+            <td>MM 100</td>
+            <td>MM 200</td>
+        </tr>
+        <tr>
+            <td class="bg-dark">Tendencia</td>
+            <td class="{c_ma1}">{t_ma1}</td>
+            <td class="{c_ma2}">{t_ma2}</td>
+            <td class="{c_ma3}">{t_ma3}</td>
+            <td class="{c_ma4}">{t_ma4}</td>
+            <td class="{c_ma5}">{t_ma5}</td>
+        </tr>
+        <tr>
+            <td class="bg-navy">FILTROS OPT.</td>
+            <td class="{c_adx}">ADX ({res['adx']:.1f})</td>
+            <td class="bg-dark">RÉGIMEN</td>
+            <td class="{c_reg}">{t_reg}</td>
+            <td class="bg-dark">CONF. MTF (W)</td>
+            <td class="{c_ma2}">{t_ma2}</td>
+        </tr>
+        <tr>
+            <td class="bg-orange">ORACLE</td>
+            <td class="bg-dark">Estándar</td>
+            <td class="bg-dark">VALOR WT1</td>
+            <td class="bg-dark">{res['wt1']:.2f}</td>
+            <td class="bg-dark">ESTADO ORACLE</td>
+            <td class="{c_ora}">{t_ora}</td>
+        </tr>
+        <tr>
+            <td class="bg-purple">PATRÓN VELA</td>
+            <td class="bg-dark">{res['patron']}</td>
+            <td class="bg-dark">RESEÑA TÉCNICA</td>
+            <td class="bg-dark">{res['desc_patron']}</td>
+            <td class="bg-dark">PTS PATRÓN</td>
+            <td class="bg-dark">{res['patron_pts']} Pts</td>
+        </tr>
+        <tr>
+            <td class="bg-navy">SCORE BOT</td>
+            <td class="{c_score}">{res['score']} / 100</td>
+            <td class="bg-dark">ESTADO RSI</td>
+            <td class="bg-dark">{t_rsi}</td>
+            <td class="bg-dark">VALOR RSI</td>
+            <td class="bg-dark">{res['rsi']:.1f}</td>
+        </tr>
+        <tr>
+            <td class="bg-gold">SEÑAL BOT</td>
+            <td class="{c_sig}">{res['signal']}</td>
+            <td class="bg-dark">PRECIO ENTRADA</td>
+            <td class="bg-dark">${res['precio']:.2f}</td>
+            <td class="bg-dark">RATIO R:B REAL</td>
+            <td class="bg-dark">1 : 2.0</td>
+        </tr>
+        <tr>
+            <td class="bg-purple">GESTIÓN RIESGO</td>
+            <td class="bg-red">STOP LOSS (ATR)</td>
+            <td class="bg-red">{sl_str}</td>
+            <td class="bg-green">TAKE PROFIT</td>
+            <td class="bg-green">{tp_str}</td>
+            <td class="bg-dark">RIESGO: 2.0x ATR</td>
+        </tr>
+    </table>
+    """
+    st.markdown(matriz_html, unsafe_allow_html=True)
