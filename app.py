@@ -273,7 +273,7 @@ res = calcular_matriz_pine(
 )
 
 # ==========================================
-# RENDER DEL GRÁFICO OFICIAL TRADINGVIEW (100% IDÉNTICO)
+# RENDER DEL GRÁFICO OFICIAL TRADINGVIEW
 # ==========================================
 template_tv = """
 <div class="tradingview-widget-container" style="height:100%;width:100%">
@@ -381,7 +381,7 @@ if res:
             <td class="bg-purple">PATRÓN VELA</td>
             <td class="bg-dark">{res['patron']}</td>
             <td class="bg-dark">RESEÑA TÉCNICA</td>
-            <td class="bg-dark">{desc_patron}</td>
+            <td class="bg-dark">{res['desc_patron']}</td>
             <td class="bg-dark">PTS PATRÓN</td>
             <td class="bg-dark">{res['patron_pts']} Pts</td>
         </tr>
