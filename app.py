@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS generales para la aplicación
+# Estilos CSS generales
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #d1d4dc; }
@@ -226,7 +226,7 @@ with st.sidebar.expander("➕ / ➖ Gestionar Activos Manuales", expanded=False)
                     "name": n_name.strip(), "tv": n_tv.strip().upper(), "yf": n_yf.strip().upper(), "cat": n_cat
                 }
                 st.session_state.listas_personalizadas["Lista de seguimiento"].append(tick_clean)
-                st.success(f"¡{tick_clean} agregado correctamente con su icono!")
+                st.success(f"¡{tick_clean} agregado correctamente!")
                 st.rerun()
     with tab_del:
         b_ticker = st.selectbox("Activo a Borrar:", list(st.session_state.activos_dict.keys()))
@@ -513,10 +513,10 @@ with col_main:
         """
         st.markdown(matriz_html, unsafe_allow_html=True)
 
-# PANEL DERECHO: WATCHLIST TIPO TRADINGVIEW CON ICONOS AUTOMÁTICOS
+# PANEL DERECHO: WATCHLIST NATIVA CON CONEXIÓN DIRECTA Y MOUSE CLICK
 with col_watchlist:
     lista_sel = st.selectbox(
-        "📌 Selector de Lista / Banderas:",
+        "📌 Lista Activa:",
         options=list(st.session_state.listas_personalizadas.keys()),
         index=list(st.session_state.listas_personalizadas.keys()).index(st.session_state.lista_activa_sel)
     )
@@ -547,160 +547,19 @@ with col_watchlist:
             st.session_state.idx_activo = (st.session_state.idx_activo + 1) % len(keys_list)
             st.rerun()
 
-    selected_ticker = st.selectbox(
-        "Activo Seleccionado:",
+    # SELECTOR DIRECTO QUE ACTUALIZA EL ESTADO AL CLICKEAR
+    selected_ticker = st.radio(
+        "Seleccionar Activo con el Mouse:",
         options=keys_list,
         index=st.session_state.idx_activo,
-        key="watchlist_select"
+        key="radio_watchlist_sync"
     )
 
     if keys_list.index(selected_ticker) != st.session_state.idx_activo:
         st.session_state.idx_activo = keys_list.index(selected_ticker)
         st.rerun()
 
-    # Generación de Filas HTML con Iconos Automáticos
-    html_rows = ""
-    for k in keys_list:
-        m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
-        item_info = st.session_state.activos_dict.get(k, {"yf": k})
-        logo_url = get_logo_url(item_info["yf"])
-        
-        is_sel = "tv-row-selected" if k == curr_key else ""
-        c_class = "val-up" if m["cbo"] >= 0 else "val-down"
-        sign = "+" if m["cbo"] >= 0 else ""
-        
-        html_rows += f"""
-        <tr class="tv-watchlist-row {is_sel}" data-ticker="{k}">
-            <td class="tv-cell-sym">
-                <img src="{logo_url}" class="tv-icon" onerror="this.src='https://via.placeholder.com/18/2a2e39/ffffff?text={k[0]}';"/>
-                <span>{k}</span>
-            </td>
-            <td class="tv-cell-val">{m['last']:.2f}</td>
-            <td class="tv-cell-val {c_class}">{sign}{m['cbo']:.2f}</td>
-            <td class="tv-cell-val {c_class}">{sign}{m['cbo_pct']:.2f}%</td>
-        </tr>
-        """
-
-    watchlist_full_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <style>
-        body {{
-            background-color: #0e1117;
-            color: #d1d4dc;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-        }}
-        .tv-watchlist-table {{
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-        }}
-        .tv-watchlist-table th {{
-            color: #787b86;
-            font-weight: 600;
-            text-align: right;
-            padding: 6px 4px;
-            border-bottom: 1px solid #2a2e39;
-            position: sticky;
-            top: 0;
-            background-color: #131722;
-        }}
-        .tv-watchlist-table th:first-child {{ text-align: left; }}
-        .tv-watchlist-row {{
-            cursor: pointer;
-            border-bottom: 1px solid #1e222d;
-        }}
-        .tv-watchlist-row:hover {{ background-color: #2a2e39; }}
-        .tv-row-selected {{ background-color: #1e222d; border-left: 3px solid #2962ff; }}
-        .tv-cell-sym {{
-            font-weight: bold;
-            color: #ffffff;
-            text-align: left;
-            padding: 6px 4px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }}
-        .tv-icon {{
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            object-fit: cover;
-            background-color: #2a2e39;
-        }}
-        .tv-cell-val {{ text-align: right; padding: 6px 4px; }}
-        .val-up {{ color: #26a69a; }}
-        .val-down {{ color: #ef5350; }}
-        
-        #context-menu {{
-            position: fixed;
-            display: none;
-            background-color: #1e222d;
-            border: 1px solid #363c4e;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            border-radius: 4px;
-            padding: 5px 0;
-            z-index: 1000;
-            width: 180px;
-        }}
-        .menu-item {{
-            padding: 8px 12px;
-            font-size: 12px;
-            color: #d1d4dc;
-            cursor: pointer;
-        }}
-        .menu-item:hover {{
-            background-color: #2962ff;
-            color: #ffffff;
-        }}
-    </style>
-    </head>
-    <body>
-        <div style="height:320px; overflow-y:auto; border:1px solid #2a2e39; border-radius:4px;">
-            <table class="tv-watchlist-table">
-                <thead>
-                    <tr>
-                        <th>Símbolo</th>
-                        <th>Última</th>
-                        <th>Cbo</th>
-                        <th>Cbo %</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {html_rows}
-                </tbody>
-            </table>
-        </div>
-
-        <div id="context-menu">
-            <div class="menu-item" onclick="alert('Marcar activo')">🚩 Marcar Bandera</div>
-            <div class="menu-item" onclick="alert('Añadir a lista roja')">📌 Añadir a Lista Roja</div>
-            <div class="menu-item" onclick="alert('Añadir Nota')">📝 Añadir Nota</div>
-            <div class="menu-item" onclick="alert('Ajustar Parámetros')">⚙️ Configuración</div>
-        </div>
-
-        <script>
-            const menu = document.getElementById('context-menu');
-            document.addEventListener('click', () => menu.style.display = 'none');
-            document.querySelectorAll('.tv-watchlist-row').forEach(row => {{
-                row.addEventListener('contextmenu', (e) => {{
-                    e.preventDefault();
-                    menu.style.top = `${{e.clientY}}px`;
-                    menu.style.left = `${{e.clientX}}px`;
-                    menu.style.display = 'block';
-                }});
-            }});
-        </script>
-    </body>
-    </html>
-    """
-    components.html(watchlist_full_html, height=330)
-
-    # Tarjeta de Detalle con Icono del Activo Seleccionado
+    # Tarjeta de Detalle del Activo Seleccionado
     curr_m = market_data.get(curr_key, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
     change_style = "tv-detail-change-up" if curr_m["cbo"] >= 0 else "tv-detail-change-down"
     sign_m = "+" if curr_m["cbo"] >= 0 else ""
