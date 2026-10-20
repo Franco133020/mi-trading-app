@@ -51,6 +51,8 @@ st.markdown("""
         margin-top: 10px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
+    .tv-detail-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .tv-detail-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background-color: #2a2e39; }
     .tv-detail-title { font-size: 16px; font-weight: bold; color: #ffffff; }
     .tv-detail-sub { font-size: 11px; color: #787b86; margin-bottom: 8px; }
     .tv-detail-price { font-size: 22px; font-weight: bold; color: #ffffff; }
@@ -59,6 +61,11 @@ st.markdown("""
     .tv-detail-meta { font-size: 10px; color: #787b86; margin-top: 6px; }
     </style>
 """, unsafe_allow_html=True)
+
+# Helper para obtener URL del logo dinámico
+def get_logo_url(yf_ticker):
+    clean_ticker = yf_ticker.replace(".BA", "").replace("^", "").replace("-USD", "")
+    return f"https://assets.parqet.com/logos/symbol/{clean_ticker}?format=jpg"
 
 # ==========================================
 # INICIALIZACIÓN DE LA BASE DE ACTIVOS Y LISTAS
@@ -203,6 +210,34 @@ with st.sidebar.expander("🎯 SuperTrend & Oracle Oscillator", expanded=False):
     st_period = st.number_input("Período SuperTrend", value=22, step=1)
     st_mult = st.number_input("Multiplicador SuperTrend", value=3.0, step=0.1)
     use_oracle = st.checkbox("Integrar Oracle Oscillator al Score", value=True)
+
+with st.sidebar.expander("➕ / ➖ Gestionar Activos Manuales", expanded=False):
+    tab_add, tab_del = st.tabs(["Agregar", "Eliminar"])
+    with tab_add:
+        n_ticker = st.text_input("Ticker Visible (ej: AAPL):")
+        n_name = st.text_input("Nombre de la Empresa:")
+        n_tv = st.text_input("Ticker TradingView (ej: NASDAQ:AAPL):")
+        n_yf = st.text_input("Ticker Yahoo Finance (ej: AAPL):")
+        n_cat = st.selectbox("Categoría:", ["Indices", "Sectores", "Internacional", "Mercado Argentino"])
+        if st.button("Guardar Activo"):
+            if n_ticker and n_tv and n_yf:
+                tick_clean = n_ticker.strip().upper()
+                st.session_state.activos_dict[tick_clean] = {
+                    "name": n_name.strip(), "tv": n_tv.strip().upper(), "yf": n_yf.strip().upper(), "cat": n_cat
+                }
+                st.session_state.listas_personalizadas["Lista de seguimiento"].append(tick_clean)
+                st.success(f"¡{tick_clean} agregado correctamente con su icono!")
+                st.rerun()
+    with tab_del:
+        b_ticker = st.selectbox("Activo a Borrar:", list(st.session_state.activos_dict.keys()))
+        if st.button("Borrar Activo"):
+            if len(st.session_state.activos_dict) > 1:
+                del st.session_state.activos_dict[b_ticker]
+                for l_name in st.session_state.listas_personalizadas:
+                    if b_ticker in st.session_state.listas_personalizadas[l_name]:
+                        st.session_state.listas_personalizadas[l_name].remove(b_ticker)
+                st.session_state.idx_activo = 0
+                st.rerun()
 
 # ==========================================
 # CÁLCULOS MATEMÁTICOS DE PINE SCRIPT
@@ -478,9 +513,8 @@ with col_main:
         """
         st.markdown(matriz_html, unsafe_allow_html=True)
 
-# PANEL DERECHO: WATCHLIST TIPO TRADINGVIEW CON GESTIÓN DE LISTAS
+# PANEL DERECHO: WATCHLIST TIPO TRADINGVIEW CON ICONOS AUTOMÁTICOS
 with col_watchlist:
-    # 1. Selector de Listas / Banderas (Replicando TradingView)
     lista_sel = st.selectbox(
         "📌 Selector de Lista / Banderas:",
         options=list(st.session_state.listas_personalizadas.keys()),
@@ -492,7 +526,6 @@ with col_watchlist:
         st.session_state.idx_activo = 0
         st.rerun()
 
-    # Menu Desplegable de Opciones de Lista (TradingView)
     with st.popover("⚙️ Opciones de Lista"):
         st.markdown("### 📋 Gestión de Lista")
         st.button("🔔 Añadir alerta a la lista...")
@@ -504,7 +537,6 @@ with col_watchlist:
         st.button("✨ Crear nueva lista...")
         st.button("📂 Cargar lista...")
 
-    # Botones para Navegar
     col_up, col_dn = st.columns(2)
     with col_up:
         if st.button("⬆️ Anterior", use_container_width=True):
@@ -515,7 +547,6 @@ with col_watchlist:
             st.session_state.idx_activo = (st.session_state.idx_activo + 1) % len(keys_list)
             st.rerun()
 
-    # Selector de Activo
     selected_ticker = st.selectbox(
         "Activo Seleccionado:",
         options=keys_list,
@@ -527,24 +558,29 @@ with col_watchlist:
         st.session_state.idx_activo = keys_list.index(selected_ticker)
         st.rerun()
 
-    # Filas de la Tabla
+    # Generación de Filas HTML con Iconos Automáticos
     html_rows = ""
     for k in keys_list:
         m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
+        item_info = st.session_state.activos_dict.get(k, {"yf": k})
+        logo_url = get_logo_url(item_info["yf"])
+        
         is_sel = "tv-row-selected" if k == curr_key else ""
         c_class = "val-up" if m["cbo"] >= 0 else "val-down"
         sign = "+" if m["cbo"] >= 0 else ""
         
         html_rows += f"""
         <tr class="tv-watchlist-row {is_sel}" data-ticker="{k}">
-            <td class="tv-cell-sym">{k}</td>
+            <td class="tv-cell-sym">
+                <img src="{logo_url}" class="tv-icon" onerror="this.src='https://via.placeholder.com/18/2a2e39/ffffff?text={k[0]}';"/>
+                <span>{k}</span>
+            </td>
             <td class="tv-cell-val">{m['last']:.2f}</td>
             <td class="tv-cell-val {c_class}">{sign}{m['cbo']:.2f}</td>
             <td class="tv-cell-val {c_class}">{sign}{m['cbo_pct']:.2f}%</td>
         </tr>
         """
 
-    # Iframe de Lista
     watchlist_full_html = f"""
     <!DOCTYPE html>
     <html>
@@ -580,7 +616,22 @@ with col_watchlist:
         }}
         .tv-watchlist-row:hover {{ background-color: #2a2e39; }}
         .tv-row-selected {{ background-color: #1e222d; border-left: 3px solid #2962ff; }}
-        .tv-cell-sym {{ font-weight: bold; color: #ffffff; text-align: left; padding: 6px 4px; }}
+        .tv-cell-sym {{
+            font-weight: bold;
+            color: #ffffff;
+            text-align: left;
+            padding: 6px 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        .tv-icon {{
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            object-fit: cover;
+            background-color: #2a2e39;
+        }}
         .tv-cell-val {{ text-align: right; padding: 6px 4px; }}
         .val-up {{ color: #26a69a; }}
         .val-down {{ color: #ef5350; }}
@@ -649,15 +700,21 @@ with col_watchlist:
     """
     components.html(watchlist_full_html, height=330)
 
-    # 2. Tarjeta Detalle de Información Financiera del Activo (Replicando panel inferior de TradingView)
+    # Tarjeta de Detalle con Icono del Activo Seleccionado
     curr_m = market_data.get(curr_key, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
     change_style = "tv-detail-change-up" if curr_m["cbo"] >= 0 else "tv-detail-change-down"
     sign_m = "+" if curr_m["cbo"] >= 0 else ""
+    curr_logo = get_logo_url(curr_item["yf"])
 
     st.markdown(f"""
         <div class="tv-detail-card">
-            <div class="tv-detail-title">📊 {curr_key}</div>
-            <div class="tv-detail-sub">{curr_item['name']} • {curr_item['cat']}</div>
+            <div class="tv-detail-header">
+                <img src="{curr_logo}" class="tv-detail-logo" onerror="this.src='https://via.placeholder.com/28/2a2e39/ffffff?text={curr_key[0]}';"/>
+                <div>
+                    <div class="tv-detail-title">{curr_key}</div>
+                    <div class="tv-detail-sub">{curr_item['name']} • {curr_item['cat']}</div>
+                </div>
+            </div>
             <div class="tv-detail-price">${curr_m['last']:.2f} USD</div>
             <div class="{change_style}">{sign_m}{curr_m['cbo']:.2f} ({sign_m}{curr_m['cbo_pct']:.2f}%)</div>
             <div class="tv-detail-meta">Volumen Medio (30d): {curr_m['vol']/1e6:.2f}M</div>
