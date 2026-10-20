@@ -4,7 +4,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
-# Configuración de la página
+# Configuración de la página Streamlit
 st.set_page_config(
     page_title="Sistema Scoring - TradingView Style",
     page_icon="📊",
@@ -12,43 +12,39 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS de alto contraste tipo TradingView
+# Estilos CSS de alto contraste tipo TradingView y Menú de Clic Derecho
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #d1d4dc; }
     div[data-testid="stSidebar"] { background-color: #161922; }
     
-    /* Estilos de la Lista de Seguimiento (Watchlist) a la derecha */
-    .watchlist-box {
-        background-color: #131722;
-        border: 1px solid #2a2e39;
-        border-radius: 6px;
-        padding: 10px;
-        height: 600px;
-        overflow-y: auto;
-    }
-    .watchlist-header {
-        font-weight: bold;
-        color: #8f93a0;
+    /* Estilos de la Lista de Seguimiento (Watchlist) */
+    .tv-watchlist-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
         font-size: 12px;
-        padding-bottom: 8px;
+        color: #d1d4dc;
+    }
+    .tv-watchlist-table th {
+        color: #787b86;
+        font-weight: 600;
+        text-align: right;
+        padding: 6px 4px;
         border-bottom: 1px solid #2a2e39;
-        margin-bottom: 10px;
     }
-    .watchlist-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 10px;
-        border-radius: 4px;
+    .tv-watchlist-table th:first-child { text-align: left; }
+    .tv-watchlist-row {
         cursor: pointer;
-        margin-bottom: 4px;
-        transition: background 0.2s;
+        border-bottom: 1px solid #1e222d;
+        transition: background 0.15s;
     }
-    .watchlist-item:hover { background-color: #2a2e39; }
-    .item-selected { background-color: #1e222d; border-left: 4px solid #2962ff; }
-    .item-ticker { font-weight: bold; color: #ffffff; font-size: 13px; }
-    .item-cat { font-size: 10px; color: #787b86; }
+    .tv-watchlist-row:hover { background-color: #2a2e39; }
+    .tv-row-selected { background-color: #1e222d; border-left: 3px solid #2962ff; }
+    .tv-cell-sym { font-weight: bold; color: #ffffff; text-align: left; padding: 6px 4px; }
+    .tv-cell-val { text-align: right; padding: 6px 4px; }
+    .val-up { color: #26a69a; }
+    .val-down { color: #ef5350; }
     
     /* Tabla Matricial */
     .matriz-table {
@@ -101,39 +97,25 @@ if "activos_dict" not in st.session_state:
         "XLK": {"name": "Technology Select Sector", "tv": "AMEX:XLK", "yf": "XLK", "cat": "Sectores"},
         
         # INTERNACIONAL
-        "QQQ": {"name": "Nasdaq 100", "tv": "NASDAQ:QQQ", "yf": "QQQ", "cat": "Internacional"},
-        "AAPL": {"name": "Apple Inc.", "tv": "NASDAQ:AAPL", "yf": "AAPL", "cat": "Internacional"},
-        "AMZN": {"name": "Amazon.com", "tv": "NASDAQ:AMZN", "yf": "AMZN", "cat": "Internacional"},
-        "GOOGL": {"name": "Alphabet / Google", "tv": "NASDAQ:GOOGL", "yf": "GOOGL", "cat": "Internacional"},
-        "MSFT": {"name": "Microsoft", "tv": "NASDAQ:MSFT", "yf": "MSFT", "cat": "Internacional"},
-        "META": {"name": "Meta Platforms", "tv": "NASDAQ:META", "yf": "META", "cat": "Internacional"},
-        "TSLA": {"name": "Tesla", "tv": "NASDAQ:TSLA", "yf": "TSLA", "cat": "Internacional"},
-        "NVDA": {"name": "NVIDIA", "tv": "NASDAQ:NVDA", "yf": "NVDA", "cat": "Internacional"},
-        "INTC": {"name": "Intel", "tv": "NASDAQ:INTC", "yf": "INTC", "cat": "Internacional"},
-        "AVGO": {"name": "Broadcom", "tv": "NASDAQ:AVGO", "yf": "AVGO", "cat": "Internacional"},
-        "TSM": {"name": "Taiwan Semiconductor", "tv": "NYSE:TSM", "yf": "TSM", "cat": "Internacional"},
-        "AMD": {"name": "Advanced Micro Devices", "tv": "NASDAQ:AMD", "yf": "AMD", "cat": "Internacional"},
-        "ORCL": {"name": "Oracle", "tv": "NYSE:ORCL", "yf": "ORCL", "cat": "Internacional"},
-        "PLTR": {"name": "Palantir", "tv": "NYSE:PLTR", "yf": "PLTR", "cat": "Internacional"},
-        "NFLX": {"name": "Netflix", "tv": "NASDAQ:NFLX", "yf": "NFLX", "cat": "Internacional"},
-        "MELI": {"name": "MercadoLibre", "tv": "NASDAQ:MELI", "yf": "MELI", "cat": "Internacional"},
-        "BTCUSDT": {"name": "Bitcoin / USDT", "tv": "BINANCE:BTCUSDT", "yf": "BTC-USD", "cat": "Internacional"},
-        "ETHUSDT": {"name": "Ethereum / USDT", "tv": "BINANCE:ETHUSDT", "yf": "ETH-USD", "cat": "Internacional"},
+        "UBER": {"name": "Uber Technologies", "tv": "NYSE:UBER", "yf": "UBER", "cat": "Internacional"},
+        "MCD": {"name": "McDonald's Corp.", "tv": "NYSE:MCD", "yf": "MCD", "cat": "Internacional"},
+        "DIS": {"name": "Walt Disney Co.", "tv": "NYSE:DIS", "yf": "DIS", "cat": "Internacional"},
+        "NFLX": {"name": "Netflix Inc.", "tv": "NASDAQ:NFLX", "yf": "NFLX", "cat": "Internacional"},
+        "NKE": {"name": "Nike Inc.", "tv": "NYSE:NKE", "yf": "NKE", "cat": "Internacional"},
+        "BKNG": {"name": "Booking Holdings", "tv": "NASDAQ:BKNG", "yf": "BKNG", "cat": "Internacional"},
+        "TSLA": {"name": "Tesla Inc.", "tv": "NASDAQ:TSLA", "yf": "TSLA", "cat": "Internacional"},
+        "F": {"name": "Ford Motor Co.", "tv": "NYSE:F", "yf": "F", "cat": "Internacional"},
+        "BRK.B": {"name": "Berkshire Hathaway", "tv": "NYSE:BRK.B", "yf": "BRK-B", "cat": "Internacional"},
+        "JPM": {"name": "JPMorgan Chase", "tv": "NYSE:JPM", "yf": "JPM", "cat": "Internacional"},
+        "V": {"name": "Visa Inc.", "tv": "NYSE:V", "yf": "V", "cat": "Internacional"},
+        "MA": {"name": "Mastercard Inc.", "tv": "NYSE:MA", "yf": "MA", "cat": "Internacional"},
 
         # MERCADO ARGENTINO (BCBA)
-        "MERVAL": {"name": "Índice Merval", "tv": "BCBA:IMV", "yf": "^MERV", "cat": "Mercado Argentino"},
+        "IMV": {"name": "Índice Merval", "tv": "BCBA:IMV", "yf": "^MERV", "cat": "Mercado Argentino"},
         "YPFD": {"name": "YPF S.A.", "tv": "BCBA:YPFD", "yf": "YPFD.BA", "cat": "Mercado Argentino"},
         "PAMP": {"name": "Pampa Energía", "tv": "BCBA:PAMP", "yf": "PAMP.BA", "cat": "Mercado Argentino"},
         "SUPV": {"name": "Grupo Supervielle", "tv": "BCBA:SUPV", "yf": "SUPV.BA", "cat": "Mercado Argentino"},
-        "GGAL": {"name": "Grupo Fin. Galicia", "tv": "BCBA:GGAL", "yf": "GGAL.BA", "cat": "Mercado Argentino"},
-        "BMA": {"name": "Banco Macro", "tv": "BCBA:BMA", "yf": "BMA.BA", "cat": "Mercado Argentino"},
-        "BBAR": {"name": "BBVA Argentina", "tv": "BCBA:BBAR", "yf": "BBAR.BA", "cat": "Mercado Argentino"},
-        "CEPU": {"name": "Central Puerto", "tv": "BCBA:CEPU", "yf": "CEPU.BA", "cat": "Mercado Argentino"},
-        "TGSU2": {"name": "Transp. Gas del Sur", "tv": "BCBA:TGSU2", "yf": "TGSU2.BA", "cat": "Mercado Argentino"},
-        "TXAR": {"name": "Ternium Argentina", "tv": "BCBA:TXAR", "yf": "TXAR.BA", "cat": "Mercado Argentino"},
-        "ALUA": {"name": "Aluar", "tv": "BCBA:ALUA", "yf": "ALUA.BA", "cat": "Mercado Argentino"},
-        "LOMA": {"name": "Loma Negra", "tv": "BCBA:LOMA", "yf": "LOMA.BA", "cat": "Mercado Argentino"},
-        "COME": {"name": "Soc. Comercial del Plata", "tv": "BCBA:COME", "yf": "COME.BA", "cat": "Mercado Argentino"}
+        "GGAL": {"name": "Grupo Fin. Galicia", "tv": "BCBA:GGAL", "yf": "GGAL.BA", "cat": "Mercado Argentino"}
     }
 
 keys_list = list(st.session_state.activos_dict.keys())
@@ -142,7 +124,37 @@ if "idx_activo" not in st.session_state:
     st.session_state.idx_activo = 0
 
 # ==========================================
-# PARÁMETROS DEL SCORING (BARRA LATERAL)
+# CÁLCULO DE COTIZACIONES EN TIEMPO REAL PARA LA WATCHLIST
+# ==========================================
+@st.cache_data(ttl=30)
+def obtener_cotizaciones_watchlist(activos):
+    symbols = [v["yf"] for v in activos.values()]
+    try:
+        data = yf.download(symbols, period="2d", interval="1d", progress=False)
+        res = {}
+        if not data.empty and 'Close' in data:
+            closes = data['Close']
+            for k, v in activos.items():
+                sym = v["yf"]
+                if sym in closes.columns or len(symbols) == 1:
+                    col = closes[sym] if len(symbols) > 1 else closes
+                    if len(col.dropna()) >= 2:
+                        last = float(col.dropna().iloc[-1])
+                        prev = float(col.dropna().iloc[-2])
+                        cbo = last - prev
+                        cbo_pct = (cbo / prev) * 100.0
+                        res[k] = {"last": last, "cbo": cbo, "cbo_pct": cbo_pct}
+                    elif len(col.dropna()) == 1:
+                        last = float(col.dropna().iloc[-1])
+                        res[k] = {"last": last, "cbo": 0.0, "cbo_pct": 0.0}
+        return res
+    except Exception:
+        return {}
+
+market_data = obtener_cotizaciones_watchlist(st.session_state.activos_dict)
+
+# ==========================================
+# BARRA LATERAL: PARÁMETROS DEL SCORING
 # ==========================================
 st.sidebar.header("⚙️ Configuración del Scoring")
 
@@ -189,28 +201,6 @@ with st.sidebar.expander("🎯 SuperTrend & Oracle Oscillator", expanded=False):
     st_period = st.number_input("Período SuperTrend", value=22, step=1)
     st_mult = st.number_input("Multiplicador SuperTrend", value=3.0, step=0.1)
     use_oracle = st.checkbox("Integrar Oracle Oscillator al Score", value=True)
-
-with st.sidebar.expander("➕ / ➖ Gestionar Activos", expanded=False):
-    tab_add, tab_del = st.tabs(["Agregar", "Eliminar"])
-    with tab_add:
-        n_ticker = st.text_input("Ticker Visible (ej: TSLA):")
-        n_name = st.text_input("Nombre Corto:")
-        n_tv = st.text_input("Ticker TradingView (ej: NASDAQ:TSLA):")
-        n_yf = st.text_input("Ticker Yahoo (ej: TSLA):")
-        n_cat = st.selectbox("Categoría:", ["Indices", "Sectores", "Internacional", "Mercado Argentino"])
-        if st.button("Guardar Activo"):
-            if n_ticker and n_tv and n_yf:
-                st.session_state.activos_dict[n_ticker.upper()] = {
-                    "name": n_name, "tv": n_tv.upper(), "yf": n_yf.upper(), "cat": n_cat
-                }
-                st.rerun()
-    with tab_del:
-        b_ticker = st.selectbox("Activo a Borrar:", keys_list)
-        if st.button("Borrar"):
-            if len(keys_list) > 1:
-                del st.session_state.activos_dict[b_ticker]
-                st.session_state.idx_activo = 0
-                st.rerun()
 
 # ==========================================
 # CÁLCULOS MATEMÁTICOS DE PINE SCRIPT
@@ -338,22 +328,20 @@ def calcular_matriz_pine(symbol_yf, interval, period,
         return None
 
 # ==========================================
-# LAYOUT PRINCIPAL TIPO TRADINGVIEW (2 COLUMNAS)
+# LAYOUT PRINCIPAL (75% GRÁFICO / 25% WATCHLIST)
 # ==========================================
-col_main, col_watchlist = st.columns([0.76, 0.24])
+col_main, col_watchlist = st.columns([0.75, 0.25])
 
-# OBTENER ACTIVO SELECCIONADO ACTUAL
 curr_key = keys_list[st.session_state.idx_activo]
 curr_item = st.session_state.activos_dict[curr_key]
 
 tv_symbol = curr_item["tv"]
 yf_symbol = curr_item["yf"]
 
-# PANEL IZQUIERDO: GRÁFICO + TABLA MATRICIAL
+# PANEL IZQUIERDO
 with col_main:
     st.markdown(f"### 📊 {curr_key} - {curr_item['name']} ({curr_item['cat']})")
     
-    # Widget Oficial de TradingView
     template_tv = """
     <div class="tradingview-widget-container" style="height:100%;width:100%">
       <div id="tradingview_chart" style="height:500px;width:100%"></div>
@@ -384,7 +372,6 @@ with col_main:
     tradingview_html = template_tv.replace("SYMBOL_PLACEHOLDER", tv_symbol).replace("TIMEFRAME_PLACEHOLDER", tv_tf_code)
     components.html(tradingview_html, height=510)
     
-    # Cálculo y Render de la Tabla Matricial
     res = calcular_matriz_pine(
         yf_symbol, yf_interval, yf_period,
         len_mm1, len_mm2, len_mm3, len_mm4, len_mm5,
@@ -489,56 +476,79 @@ with col_main:
         """
         st.markdown(matriz_html, unsafe_allow_html=True)
 
-# PANEL DERECHO: LISTA DE SEGUIMIENTO (WATCHLIST TIPO TRADINGVIEW)
+# PANEL DERECHO: WATCHLIST NATIVA CON CLIC DERECHO
 with col_watchlist:
     st.markdown("### 📌 Lista de seguimiento")
     
-    # Filtro de categorías
-    cat_filtro = st.selectbox("Filtrar Categoría:", ["Todas", "Indices", "Sectores", "Internacional", "Mercado Argentino"])
-    
-    # Controles de navegación rápida con botones y soporte de flechas del teclado
-    col_up, col_dn = st.columns(2)
-    with col_up:
-        if st.button("⬆️ Anterior (Arriba)", use_container_width=True):
-            st.session_state.idx_activo = (st.session_state.idx_activo - 1) % len(keys_list)
-            st.rerun()
-    with col_dn:
-        if st.button("⬇️ Siguiente (Abajo)", use_container_width=True):
-            st.session_state.idx_activo = (st.session_state.idx_activo + 1) % len(keys_list)
-            st.rerun()
-
-    # Selector directo de activo
-    opciones_visibles = []
-    for i, k in enumerate(keys_list):
-        item = st.session_state.activos_dict[k]
-        if cat_filtro == "Todas" or item["cat"] == cat_filtro:
-            opciones_visibles.append(k)
-
-    if curr_key not in opciones_visibles and len(opciones_visibles) > 0:
-        curr_key = opciones_visibles[0]
-
-    sel_key = st.radio(
-        "Seleccionar Activo:",
-        options=opciones_visibles,
-        index=opciones_visibles.index(curr_key) if curr_key in opciones_visibles else 0,
-        label_visibility="collapsed"
+    # Selector de activo nativo con detalle de cotizaciones en tiempo real
+    selected_ticker = st.selectbox(
+        "Activo Seleccionado:",
+        options=keys_list,
+        index=st.session_state.idx_activo,
+        key="watchlist_select"
     )
 
-    if sel_key != curr_key:
-        st.session_state.idx_activo = keys_list.index(sel_key)
+    if keys_list.index(selected_ticker) != st.session_state.idx_activo:
+        st.session_state.idx_activo = keys_list.index(selected_ticker)
         st.rerun()
 
-# SCRIPT JS PARA NAVEGAR CON FLECHAS DEL TECLADO (ARRIBA Y ABAJO)
+    # Render de la Tabla de Cotizaciones
+    html_rows = ""
+    for k in keys_list:
+        m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0})
+        is_sel = "tv-row-selected" if k == curr_key else ""
+        c_class = "val-up" if m["cbo"] >= 0 else "val-down"
+        sign = "+" if m["cbo"] >= 0 else ""
+        
+        html_rows += f"""
+        <tr class="tv-watchlist-row {is_sel}" onclick="window.parent.postMessage({{type: 'SELECT_TICKER', ticker: '{k}'}}, '*')">
+            <td class="tv-cell-sym">{k}</td>
+            <td class="tv-cell-val">{m['last']:.2f}</td>
+            <td class="tv-cell-val {c_class}">{sign}{m['cbo']:.2f}</td>
+            <td class="tv-cell-val {c_class}">{sign}{m['cbo_pct']:.2f}%</td>
+        </tr>
+        """
+
+    watchlist_html = f"""
+    <div style="height:480px; overflow-y:auto; border:1px solid #2a2e39; border-radius:4px;">
+        <table class="tv-watchlist-table">
+            <thead>
+                <tr>
+                    <th>Símbolo</th>
+                    <th>Última</th>
+                    <th>Cbo</th>
+                    <th>Cbo %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {html_rows}
+            </tbody>
+        </table>
+    </div>
+    """
+    st.markdown(watchlist_html, unsafe_allow_html=True)
+
+# CONTROLES DE NAVEGACIÓN Y EVENTOS DE TECLADO / CLIC DERECHO
 components.html("""
 <script>
 const doc = window.parent.document;
+
+// Listener para flechas del teclado (Arriba / Abajo)
 doc.addEventListener('keydown', function(e) {
-    if (e.key === 'ArrowDown') {
-        const btnDn = doc.querySelector('button:contains("Siguiente")') || doc.querySelectorAll('button')[1];
-        if (btnDn) btnDn.click();
-    } else if (e.key === 'ArrowUp') {
-        const btnUp = doc.querySelector('button:contains("Anterior")') || doc.querySelectorAll('button')[0];
-        if (btnUp) btnUp.click();
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const selectEl = doc.querySelector('div[data-baseweb="select"] input');
+        if (selectEl) {
+            selectEl.focus();
+        }
+    }
+});
+
+// Menú flotante para Clic Derecho sobre la lista
+doc.addEventListener('contextmenu', function(e) {
+    const row = e.target.closest('.tv-watchlist-row');
+    if (row) {
+        e.preventDefault();
+        alert('Opciones de Configuración para ' + row.innerText.split('\\t')[0] + '\\n- Marcar con Bandera\\n- Añadir Nota\\n- Ajustar Parámetros');
     }
 });
 </script>
