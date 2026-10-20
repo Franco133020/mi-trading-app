@@ -41,11 +41,27 @@ st.markdown("""
     .bg-teal { background-color: #00796b; color: white; }
     .bg-purple { background-color: #4a148c; color: white; }
     .bg-gold { background-color: #f57f17; color: white; }
+
+    /* Tarjeta de Información Financiera del Activo */
+    .tv-detail-card {
+        background-color: #131722;
+        border: 1px solid #2a2e39;
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 10px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .tv-detail-title { font-size: 16px; font-weight: bold; color: #ffffff; }
+    .tv-detail-sub { font-size: 11px; color: #787b86; margin-bottom: 8px; }
+    .tv-detail-price { font-size: 22px; font-weight: bold; color: #ffffff; }
+    .tv-detail-change-up { font-size: 13px; font-weight: bold; color: #26a69a; }
+    .tv-detail-change-down { font-size: 13px; font-weight: bold; color: #ef5350; }
+    .tv-detail-meta { font-size: 10px; color: #787b86; margin-top: 6px; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# INICIALIZACIÓN DE LA BASE DE ACTIVOS
+# INICIALIZACIÓN DE LA BASE DE ACTIVOS Y LISTAS
 # ==========================================
 if "activos_dict" not in st.session_state:
     st.session_state.activos_dict = {
@@ -69,7 +85,7 @@ if "activos_dict" not in st.session_state:
         "XLK": {"name": "Technology Select Sector", "tv": "AMEX:XLK", "yf": "XLK", "cat": "Sectores"},
         
         # INTERNACIONAL
-        "UBER": {"name": "Uber Technologies", "tv": "NYSE:UBER", "yf": "UBER", "cat": "Internacional"},
+        "UBER": {"name": "Uber Technologies Inc.", "tv": "NYSE:UBER", "yf": "UBER", "cat": "Internacional"},
         "MCD": {"name": "McDonald's Corp.", "tv": "NYSE:MCD", "yf": "MCD", "cat": "Internacional"},
         "DIS": {"name": "Walt Disney Co.", "tv": "NYSE:DIS", "yf": "DIS", "cat": "Internacional"},
         "NFLX": {"name": "Netflix Inc.", "tv": "NASDAQ:NFLX", "yf": "NFLX", "cat": "Internacional"},
@@ -90,36 +106,49 @@ if "activos_dict" not in st.session_state:
         "GGAL": {"name": "Grupo Fin. Galicia", "tv": "BCBA:GGAL", "yf": "GGAL.BA", "cat": "Mercado Argentino"}
     }
 
-keys_list = list(st.session_state.activos_dict.keys())
+if "listas_personalizadas" not in st.session_state:
+    st.session_state.listas_personalizadas = {
+        "Lista de seguimiento": list(st.session_state.activos_dict.keys()),
+        "Lista roja 🚩": ["UBER", "MCD", "NFLX", "TSLA", "YPFD", "GGAL"],
+        "BYMA, Ganadoras por cambio %": ["YPFD", "PAMP", "SUPV", "GGAL", "IMV"]
+    }
 
-if "idx_activo" not in st.session_state:
+if "lista_activa_sel" not in st.session_state:
+    st.session_state.lista_activa_sel = "Lista de seguimiento"
+
+keys_list = st.session_state.listas_personalizadas[st.session_state.lista_activa_sel]
+
+if "idx_activo" not in st.session_state or st.session_state.idx_activo >= len(keys_list):
     st.session_state.idx_activo = 0
 
 # ==========================================
-# OBTECIÓN DE DATOS DE MERCADO
+# OBTENCIÓN DE DATOS DE MERCADO
 # ==========================================
 @st.cache_data(ttl=30)
-def obtener_cotizaciones_watchlist(activos):
-    symbols = [v["yf"] for v in activos.values()]
+def obtener_cotizaciones_watchlist(activos_dict):
+    symbols = [v["yf"] for v in activos_dict.values()]
     try:
         data = yf.download(symbols, period="2d", interval="1d", progress=False)
         res = {}
         if not data.empty and 'Close' in data:
             closes = data['Close']
-            for k, v in activos.items():
+            volumes = data['Volume'] if 'Volume' in data else None
+            for k, v in activos_dict.items():
                 sym = v["yf"]
                 if sym in closes.columns or len(symbols) == 1:
                     col = closes[sym] if len(symbols) > 1 else closes
+                    col_v = volumes[sym] if (volumes is not None and len(symbols) > 1 and sym in volumes.columns) else None
                     col_valid = col.dropna()
                     if len(col_valid) >= 2:
                         last = float(col_valid.iloc[-1])
                         prev = float(col_valid.iloc[-2])
                         cbo = last - prev
                         cbo_pct = (cbo / prev) * 100.0
-                        res[k] = {"last": last, "cbo": cbo, "cbo_pct": cbo_pct}
+                        vol_last = float(col_v.dropna().iloc[-1]) if col_v is not None and not col_v.dropna().empty else 0.0
+                        res[k] = {"last": last, "cbo": cbo, "cbo_pct": cbo_pct, "vol": vol_last}
                     elif len(col_valid) == 1:
                         last = float(col_valid.iloc[-1])
-                        res[k] = {"last": last, "cbo": 0.0, "cbo_pct": 0.0}
+                        res[k] = {"last": last, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0}
         return res
     except Exception:
         return {}
@@ -449,11 +478,33 @@ with col_main:
         """
         st.markdown(matriz_html, unsafe_allow_html=True)
 
-# PANEL DERECHO: WATCHLIST INTERACTIVA (HTML + JS EMBEDDED)
+# PANEL DERECHO: WATCHLIST TIPO TRADINGVIEW CON GESTIÓN DE LISTAS
 with col_watchlist:
-    st.markdown("### 📌 Lista de seguimiento")
-    
-    # Controles con botones de navegación directa
+    # 1. Selector de Listas / Banderas (Replicando TradingView)
+    lista_sel = st.selectbox(
+        "📌 Selector de Lista / Banderas:",
+        options=list(st.session_state.listas_personalizadas.keys()),
+        index=list(st.session_state.listas_personalizadas.keys()).index(st.session_state.lista_activa_sel)
+    )
+
+    if lista_sel != st.session_state.lista_activa_sel:
+        st.session_state.lista_activa_sel = lista_sel
+        st.session_state.idx_activo = 0
+        st.rerun()
+
+    # Menu Desplegable de Opciones de Lista (TradingView)
+    with st.popover("⚙️ Opciones de Lista"):
+        st.markdown("### 📋 Gestión de Lista")
+        st.button("🔔 Añadir alerta a la lista...")
+        st.button("📑 Hacer una copia...")
+        st.button("✏️ Cambiar el nombre")
+        st.button("➕ Añadir sección")
+        st.button("🗑️ Borrar lista")
+        st.divider()
+        st.button("✨ Crear nueva lista...")
+        st.button("📂 Cargar lista...")
+
+    # Botones para Navegar
     col_up, col_dn = st.columns(2)
     with col_up:
         if st.button("⬆️ Anterior", use_container_width=True):
@@ -464,9 +515,9 @@ with col_watchlist:
             st.session_state.idx_activo = (st.session_state.idx_activo + 1) % len(keys_list)
             st.rerun()
 
-    # Selector de respaldo sincronizado
+    # Selector de Activo
     selected_ticker = st.selectbox(
-        "Activo Activo:",
+        "Activo Seleccionado:",
         options=keys_list,
         index=st.session_state.idx_activo,
         key="watchlist_select"
@@ -476,10 +527,10 @@ with col_watchlist:
         st.session_state.idx_activo = keys_list.index(selected_ticker)
         st.rerun()
 
-    # Generación de filas HTML
+    # Filas de la Tabla
     html_rows = ""
     for k in keys_list:
-        m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0})
+        m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
         is_sel = "tv-row-selected" if k == curr_key else ""
         c_class = "val-up" if m["cbo"] >= 0 else "val-down"
         sign = "+" if m["cbo"] >= 0 else ""
@@ -493,7 +544,7 @@ with col_watchlist:
         </tr>
         """
 
-    # Componente Iframe para capturar Clics, Clic Derecho y Teclas
+    # Iframe de Lista
     watchlist_full_html = f"""
     <!DOCTYPE html>
     <html>
@@ -534,7 +585,6 @@ with col_watchlist:
         .val-up {{ color: #26a69a; }}
         .val-down {{ color: #ef5350; }}
         
-        /* Menú Contextual Clic Derecho */
         #context-menu {{
             position: fixed;
             display: none;
@@ -559,7 +609,7 @@ with col_watchlist:
     </style>
     </head>
     <body>
-        <div style="height:480px; overflow-y:auto; border:1px solid #2a2e39; border-radius:4px;">
+        <div style="height:320px; overflow-y:auto; border:1px solid #2a2e39; border-radius:4px;">
             <table class="tv-watchlist-table">
                 <thead>
                     <tr>
@@ -577,15 +627,14 @@ with col_watchlist:
 
         <div id="context-menu">
             <div class="menu-item" onclick="alert('Marcar activo')">🚩 Marcar Bandera</div>
+            <div class="menu-item" onclick="alert('Añadir a lista roja')">📌 Añadir a Lista Roja</div>
             <div class="menu-item" onclick="alert('Añadir Nota')">📝 Añadir Nota</div>
             <div class="menu-item" onclick="alert('Ajustar Parámetros')">⚙️ Configuración</div>
         </div>
 
         <script>
             const menu = document.getElementById('context-menu');
-            
             document.addEventListener('click', () => menu.style.display = 'none');
-
             document.querySelectorAll('.tv-watchlist-row').forEach(row => {{
                 row.addEventListener('contextmenu', (e) => {{
                     e.preventDefault();
@@ -598,4 +647,19 @@ with col_watchlist:
     </body>
     </html>
     """
-    components.html(watchlist_full_html, height=500)
+    components.html(watchlist_full_html, height=330)
+
+    # 2. Tarjeta Detalle de Información Financiera del Activo (Replicando panel inferior de TradingView)
+    curr_m = market_data.get(curr_key, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
+    change_style = "tv-detail-change-up" if curr_m["cbo"] >= 0 else "tv-detail-change-down"
+    sign_m = "+" if curr_m["cbo"] >= 0 else ""
+
+    st.markdown(f"""
+        <div class="tv-detail-card">
+            <div class="tv-detail-title">📊 {curr_key}</div>
+            <div class="tv-detail-sub">{curr_item['name']} • {curr_item['cat']}</div>
+            <div class="tv-detail-price">${curr_m['last']:.2f} USD</div>
+            <div class="{change_style}">{sign_m}{curr_m['cbo']:.2f} ({sign_m}{curr_m['cbo_pct']:.2f}%)</div>
+            <div class="tv-detail-meta">Volumen Medio (30d): {curr_m['vol']/1e6:.2f}M</div>
+        </div>
+    """, unsafe_allow_html=True)
