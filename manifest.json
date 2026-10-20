@@ -1,6 +1,7 @@
 {
   "name": "Sistema Scoring Trading",
-  "short_name": "ScoringBot",
+  "short_name": "JJ Trading",
+  "description": "Sistema de Scoring de Trading en Tiempo Real",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0e1117",
