@@ -1,6 +1,6 @@
 {
-  "name": "Sistema Scoring Trading",
   "short_name": "JJ Trading",
+  "name": "Sistema Scoring Trading",
   "description": "Sistema de Scoring de Trading en Tiempo Real",
   "start_url": "/",
   "display": "standalone",
@@ -8,11 +8,6 @@
   "theme_color": "#161922",
   "orientation": "portrait",
   "icons": [
-    {
-      "src": "https://assets.parqet.com/logos/symbol/UBER?format=jpg",
-      "sizes": "192x192",
-      "type": "image/jpeg"
-    },
     {
       "src": "https://assets.parqet.com/logos/symbol/UBER?format=jpg",
       "sizes": "512x512",
