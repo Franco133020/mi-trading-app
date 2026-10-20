@@ -12,39 +12,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS de alto contraste tipo TradingView y Menú de Clic Derecho
+# Estilos CSS generales para la aplicación
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #d1d4dc; }
     div[data-testid="stSidebar"] { background-color: #161922; }
-    
-    /* Estilos de la Lista de Seguimiento (Watchlist) */
-    .tv-watchlist-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-        font-size: 12px;
-        color: #d1d4dc;
-    }
-    .tv-watchlist-table th {
-        color: #787b86;
-        font-weight: 600;
-        text-align: right;
-        padding: 6px 4px;
-        border-bottom: 1px solid #2a2e39;
-    }
-    .tv-watchlist-table th:first-child { text-align: left; }
-    .tv-watchlist-row {
-        cursor: pointer;
-        border-bottom: 1px solid #1e222d;
-        transition: background 0.15s;
-    }
-    .tv-watchlist-row:hover { background-color: #2a2e39; }
-    .tv-row-selected { background-color: #1e222d; border-left: 3px solid #2962ff; }
-    .tv-cell-sym { font-weight: bold; color: #ffffff; text-align: left; padding: 6px 4px; }
-    .tv-cell-val { text-align: right; padding: 6px 4px; }
-    .val-up { color: #26a69a; }
-    .val-down { color: #ef5350; }
     
     /* Tabla Matricial */
     .matriz-table {
@@ -124,7 +96,7 @@ if "idx_activo" not in st.session_state:
     st.session_state.idx_activo = 0
 
 # ==========================================
-# CÁLCULO DE COTIZACIONES EN TIEMPO REAL PARA LA WATCHLIST
+# OBTECIÓN DE DATOS DE MERCADO
 # ==========================================
 @st.cache_data(ttl=30)
 def obtener_cotizaciones_watchlist(activos):
@@ -138,14 +110,15 @@ def obtener_cotizaciones_watchlist(activos):
                 sym = v["yf"]
                 if sym in closes.columns or len(symbols) == 1:
                     col = closes[sym] if len(symbols) > 1 else closes
-                    if len(col.dropna()) >= 2:
-                        last = float(col.dropna().iloc[-1])
-                        prev = float(col.dropna().iloc[-2])
+                    col_valid = col.dropna()
+                    if len(col_valid) >= 2:
+                        last = float(col_valid.iloc[-1])
+                        prev = float(col_valid.iloc[-2])
                         cbo = last - prev
                         cbo_pct = (cbo / prev) * 100.0
                         res[k] = {"last": last, "cbo": cbo, "cbo_pct": cbo_pct}
-                    elif len(col.dropna()) == 1:
-                        last = float(col.dropna().iloc[-1])
+                    elif len(col_valid) == 1:
+                        last = float(col_valid.iloc[-1])
                         res[k] = {"last": last, "cbo": 0.0, "cbo_pct": 0.0}
         return res
     except Exception:
@@ -338,7 +311,7 @@ curr_item = st.session_state.activos_dict[curr_key]
 tv_symbol = curr_item["tv"]
 yf_symbol = curr_item["yf"]
 
-# PANEL IZQUIERDO
+# PANEL IZQUIERDO: GRÁFICO Y TABLA MATRICIAL
 with col_main:
     st.markdown(f"### 📊 {curr_key} - {curr_item['name']} ({curr_item['cat']})")
     
@@ -476,13 +449,24 @@ with col_main:
         """
         st.markdown(matriz_html, unsafe_allow_html=True)
 
-# PANEL DERECHO: WATCHLIST NATIVA CON CLIC DERECHO
+# PANEL DERECHO: WATCHLIST INTERACTIVA (HTML + JS EMBEDDED)
 with col_watchlist:
     st.markdown("### 📌 Lista de seguimiento")
     
-    # Selector de activo nativo con detalle de cotizaciones en tiempo real
+    # Controles con botones de navegación directa
+    col_up, col_dn = st.columns(2)
+    with col_up:
+        if st.button("⬆️ Anterior", use_container_width=True):
+            st.session_state.idx_activo = (st.session_state.idx_activo - 1) % len(keys_list)
+            st.rerun()
+    with col_dn:
+        if st.button("⬇️ Siguiente", use_container_width=True):
+            st.session_state.idx_activo = (st.session_state.idx_activo + 1) % len(keys_list)
+            st.rerun()
+
+    # Selector de respaldo sincronizado
     selected_ticker = st.selectbox(
-        "Activo Seleccionado:",
+        "Activo Activo:",
         options=keys_list,
         index=st.session_state.idx_activo,
         key="watchlist_select"
@@ -492,7 +476,7 @@ with col_watchlist:
         st.session_state.idx_activo = keys_list.index(selected_ticker)
         st.rerun()
 
-    # Render de la Tabla de Cotizaciones
+    # Generación de filas HTML
     html_rows = ""
     for k in keys_list:
         m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0})
@@ -501,7 +485,7 @@ with col_watchlist:
         sign = "+" if m["cbo"] >= 0 else ""
         
         html_rows += f"""
-        <tr class="tv-watchlist-row {is_sel}" onclick="window.parent.postMessage({{type: 'SELECT_TICKER', ticker: '{k}'}}, '*')">
+        <tr class="tv-watchlist-row {is_sel}" data-ticker="{k}">
             <td class="tv-cell-sym">{k}</td>
             <td class="tv-cell-val">{m['last']:.2f}</td>
             <td class="tv-cell-val {c_class}">{sign}{m['cbo']:.2f}</td>
@@ -509,47 +493,109 @@ with col_watchlist:
         </tr>
         """
 
-    watchlist_html = f"""
-    <div style="height:480px; overflow-y:auto; border:1px solid #2a2e39; border-radius:4px;">
-        <table class="tv-watchlist-table">
-            <thead>
-                <tr>
-                    <th>Símbolo</th>
-                    <th>Última</th>
-                    <th>Cbo</th>
-                    <th>Cbo %</th>
-                </tr>
-            </thead>
-            <tbody>
-                {html_rows}
-            </tbody>
-        </table>
-    </div>
+    # Componente Iframe para capturar Clics, Clic Derecho y Teclas
+    watchlist_full_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{
+            background-color: #0e1117;
+            color: #d1d4dc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }}
+        .tv-watchlist-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }}
+        .tv-watchlist-table th {{
+            color: #787b86;
+            font-weight: 600;
+            text-align: right;
+            padding: 6px 4px;
+            border-bottom: 1px solid #2a2e39;
+            position: sticky;
+            top: 0;
+            background-color: #131722;
+        }}
+        .tv-watchlist-table th:first-child {{ text-align: left; }}
+        .tv-watchlist-row {{
+            cursor: pointer;
+            border-bottom: 1px solid #1e222d;
+        }}
+        .tv-watchlist-row:hover {{ background-color: #2a2e39; }}
+        .tv-row-selected {{ background-color: #1e222d; border-left: 3px solid #2962ff; }}
+        .tv-cell-sym {{ font-weight: bold; color: #ffffff; text-align: left; padding: 6px 4px; }}
+        .tv-cell-val {{ text-align: right; padding: 6px 4px; }}
+        .val-up {{ color: #26a69a; }}
+        .val-down {{ color: #ef5350; }}
+        
+        /* Menú Contextual Clic Derecho */
+        #context-menu {{
+            position: fixed;
+            display: none;
+            background-color: #1e222d;
+            border: 1px solid #363c4e;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            border-radius: 4px;
+            padding: 5px 0;
+            z-index: 1000;
+            width: 180px;
+        }}
+        .menu-item {{
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #d1d4dc;
+            cursor: pointer;
+        }}
+        .menu-item:hover {{
+            background-color: #2962ff;
+            color: #ffffff;
+        }}
+    </style>
+    </head>
+    <body>
+        <div style="height:480px; overflow-y:auto; border:1px solid #2a2e39; border-radius:4px;">
+            <table class="tv-watchlist-table">
+                <thead>
+                    <tr>
+                        <th>Símbolo</th>
+                        <th>Última</th>
+                        <th>Cbo</th>
+                        <th>Cbo %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {html_rows}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="context-menu">
+            <div class="menu-item" onclick="alert('Marcar activo')">🚩 Marcar Bandera</div>
+            <div class="menu-item" onclick="alert('Añadir Nota')">📝 Añadir Nota</div>
+            <div class="menu-item" onclick="alert('Ajustar Parámetros')">⚙️ Configuración</div>
+        </div>
+
+        <script>
+            const menu = document.getElementById('context-menu');
+            
+            document.addEventListener('click', () => menu.style.display = 'none');
+
+            document.querySelectorAll('.tv-watchlist-row').forEach(row => {{
+                row.addEventListener('contextmenu', (e) => {{
+                    e.preventDefault();
+                    menu.style.top = `${{e.clientY}}px`;
+                    menu.style.left = `${{e.clientX}}px`;
+                    menu.style.display = 'block';
+                }});
+            }});
+        </script>
+    </body>
+    </html>
     """
-    st.markdown(watchlist_html, unsafe_allow_html=True)
-
-# CONTROLES DE NAVEGACIÓN Y EVENTOS DE TECLADO / CLIC DERECHO
-components.html("""
-<script>
-const doc = window.parent.document;
-
-// Listener para flechas del teclado (Arriba / Abajo)
-doc.addEventListener('keydown', function(e) {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        const selectEl = doc.querySelector('div[data-baseweb="select"] input');
-        if (selectEl) {
-            selectEl.focus();
-        }
-    }
-});
-
-// Menú flotante para Clic Derecho sobre la lista
-doc.addEventListener('contextmenu', function(e) {
-    const row = e.target.closest('.tv-watchlist-row');
-    if (row) {
-        e.preventDefault();
-        alert('Opciones de Configuración para ' + row.innerText.split('\\t')[0] + '\\n- Marcar con Bandera\\n- Añadir Nota\\n- Ajustar Parámetros');
-    }
-});
-</script>
-""", height=0)
+    components.html(watchlist_full_html, height=500)
