@@ -525,7 +525,7 @@ with col_main:
         """
         st.markdown(matriz_html, unsafe_allow_html=True)
 
-# --- PANEL DERECHO: WATCHLIST SINCRONIZADA ---
+# --- PANEL DERECHO: WATCHLIST SINCRONIZADA E INTERACTIVA ---
 with col_watchlist:
     lista_sel = st.selectbox(
         "📌 Lista Activa:",
@@ -548,7 +548,7 @@ with col_watchlist:
         st.session_state.idx_activo = selected_idx
         st.rerun()
 
-    # DATAFRAME INTERACTIVO DE SEGUIMIENTO CON LOGOS OFICIALES
+    # DATAFRAME DE SEGUIMIENTO CON ESTILOS
     wl_data = []
     for k in keys_list:
         m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0})
@@ -570,9 +570,24 @@ with col_watchlist:
         return ""
 
     styled_df = df_wl.style.map(color_variacion, subset=["Cbo", "Cambio %"])
-    st.dataframe(styled_df, use_container_width=True, height=360, hide_index=True)
 
-    # TARJETA INFERIOR CON EL LOGO ORIGINAL COMPLETO DEL ACTIVO SELECCIONADO
+    # SELECCIÓN INTERACTIVA MEDIANTE CLIC EN FILAS
+    event = st.dataframe(
+        styled_df,
+        use_container_width=True,
+        height=360,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row"
+    )
+
+    if event and "rows" in event.selection and len(event.selection["rows"]) > 0:
+        clicked_row_idx = event.selection["rows"][0]
+        if clicked_row_idx != st.session_state.idx_activo:
+            st.session_state.idx_activo = clicked_row_idx
+            st.rerun()
+
+    # TARJETA INFERIOR DE DETALLE CON LOGO OFICIAL
     curr_m = market_data.get(curr_key, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
     change_style = "val-up" if curr_m["cbo"] >= 0 else "val-down"
     sign_m = "+" if curr_m["cbo"] >= 0 else ""
