@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS generales y réplica exacta de la Watchlist de TradingView
+# Estilos CSS generales
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #d1d4dc; }
@@ -42,45 +42,6 @@ st.markdown("""
     .bg-purple { background-color: #4a148c; color: white; }
     .bg-gold { background-color: #f57f17; color: white; }
     
-    /* Estilos de Watchlist idénticos a TradingView */
-    .tv-wl-container {
-        background-color: #131722;
-        border: 1px solid #2a2e39;
-        border-radius: 4px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 12px;
-        overflow: hidden;
-    }
-    .tv-wl-table {
-        width: 100%;
-        border-collapse: collapse;
-        color: #d1d4dc;
-    }
-    .tv-wl-table th {
-        background-color: #1e222d;
-        color: #787b86;
-        font-weight: 500;
-        font-size: 11px;
-        text-align: right;
-        padding: 6px 8px;
-        border-bottom: 1px solid #2a2e39;
-    }
-    .tv-wl-table th:first-child { text-align: left; }
-    .tv-wl-row {
-        cursor: pointer;
-        border-bottom: 1px solid #1e222d;
-        transition: background-color 0.15s ease;
-    }
-    .tv-wl-row:hover { background-color: #2a2e39; }
-    .tv-wl-row.selected { background-color: #1e222d; border-left: 3px solid #2962ff; }
-    .tv-wl-td { padding: 6px 8px; text-align: right; white-space: nowrap; }
-    .tv-wl-td-sym { text-align: left; font-weight: bold; color: #ffffff; display: flex; align-items: center; gap: 6px; }
-    .tv-flag { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .flag-red { background-color: #ef5350; }
-    .flag-blue { background-color: #2962ff; }
-    .val-up { color: #26a69a; }
-    .val-down { color: #ef5350; }
-    
     /* Tarjeta Inferior de Detalle */
     .tv-detail-card {
         background-color: #131722;
@@ -94,6 +55,8 @@ st.markdown("""
     .tv-detail-title { font-size: 16px; font-weight: bold; color: #ffffff; }
     .tv-detail-sub { font-size: 11px; color: #787b86; }
     .tv-detail-price { font-size: 22px; font-weight: bold; color: #ffffff; margin-top: 4px; }
+    .val-up { color: #26a69a; font-weight: bold; font-size: 13px; }
+    .val-down { color: #ef5350; font-weight: bold; font-size: 13px; }
     .tv-detail-meta { font-size: 11px; color: #787b86; margin-top: 6px; display: flex; justify-content: space-between; }
     </style>
 """, unsafe_allow_html=True)
@@ -519,7 +482,7 @@ with col_main:
         """
         st.markdown(matriz_html, unsafe_allow_html=True)
 
-# --- PANEL DERECHO: WATCHLIST CON DISEÑO TRADINGVIEW ---
+# --- PANEL DERECHO: WATCHLIST ESTILO TRADINGVIEW ---
 with col_watchlist:
     lista_sel = st.selectbox(
         "📌 Lista Activa:",
@@ -531,7 +494,6 @@ with col_watchlist:
         st.session_state.idx_activo = 0
         st.rerun()
 
-    # Selector de activo
     selected_ticker = st.selectbox(
         "🔍 Seleccionar Activo:",
         options=keys_list,
@@ -541,46 +503,30 @@ with col_watchlist:
         st.session_state.idx_activo = keys_list.index(selected_ticker)
         st.rerun()
 
-    # RENDER DE TABLA ESTILO TRADINGVIEW (Símbolo | Última | Cbo | Cambio %)
-    rows_html = ""
+    # RENDER DE TABLA MEDIANTE STREAMLIT DATAFRAME FORMATEADO
+    wl_data = []
     for k in keys_list:
         m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0})
-        is_selected = (k == curr_key)
-        sel_class = "selected" if is_selected else ""
-        
-        cbo_class = "val-up" if m["cbo"] >= 0 else "val-down"
         sign = "+" if m["cbo"] >= 0 else ""
-        flag_class = "flag-red" if k in ["UBER", "MCD", "TSLA", "GGAL"] else "flag-blue"
-        
-        rows_html += f"""
-        <tr class="tv-wl-row {sel_class}">
-            <td class="tv-wl-td tv-wl-td-sym">
-                <span class="tv-flag {flag_class}"></span> {k}
-            </td>
-            <td class="tv-wl-td">${m['last']:.2f}</td>
-            <td class="tv-wl-td {cbo_class}">{sign}{m['cbo']:.2f}</td>
-            <td class="tv-wl-td {cbo_class}">{sign}{m['cbo_pct']:.2f}%</td>
-        </tr>
-        """
+        wl_data.append({
+            "Símbolo": f"🔴 {k}" if k in ["UBER", "MCD", "TSLA", "GGAL"] else f"🔵 {k}",
+            "Última": f"${m['last']:.2f}",
+            "Cbo": f"{sign}{m['cbo']:.2f}",
+            "Cambio %": f"{sign}{m['cbo_pct']:.2f}%"
+        })
 
-    wl_table_html = f"""
-    <div class="tv-wl-container">
-        <table class="tv-wl-table">
-            <thead>
-                <tr>
-                    <th>Símbolo</th>
-                    <th>Última</th>
-                    <th>Cbo</th>
-                    <th>Cambio %</th>
-                </tr>
-            </thead>
-            <tbody>
-                {rows_html}
-            </tbody>
-        </table>
-    </div>
-    """
-    st.markdown(wl_table_html, unsafe_allow_html=True)
+    df_wl = pd.DataFrame(wl_data)
+    
+    # Aplicar estilos con colores verde / rojo para las variaciones de precio
+    def color_variacion(val):
+        if str(val).startswith("+"):
+            return "color: #26a69a; font-weight: bold;"
+        elif str(val).startswith("-"):
+            return "color: #ef5350; font-weight: bold;"
+        return ""
+
+    styled_df = df_wl.style.map(color_variacion, subset=["Cbo", "Cambio %"])
+    st.dataframe(styled_df, use_container_width=True, height=350, hide_index=True)
 
     # TARJETA INFERIOR DE DETALLE DE COMPAÑÍA
     curr_m = market_data.get(curr_key, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
@@ -598,7 +544,7 @@ with col_watchlist:
                 </div>
             </div>
             <div class="tv-detail-price">${curr_m['last']:.2f} USD</div>
-            <div class="{change_style}" style="font-weight:bold; font-size:13px;">
+            <div class="{change_style}">
                 {sign_m}{curr_m['cbo']:.2f} ({sign_m}{curr_m['cbo_pct']:.2f}%)
             </div>
             <div class="tv-detail-meta">
