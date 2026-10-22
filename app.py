@@ -4,7 +4,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
-# Configuración de la página Streamlit
+# Configuración de la página
 st.set_page_config(
     page_title="Sistema Scoring - TradingView Style",
     page_icon="📊",
@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS generales
+# Estilos CSS generales y menú de contexto
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #d1d4dc; }
@@ -58,6 +58,18 @@ st.markdown("""
     .val-up { color: #26a69a; font-weight: bold; font-size: 13px; }
     .val-down { color: #ef5350; font-weight: bold; font-size: 13px; }
     .tv-detail-meta { font-size: 11px; color: #787b86; margin-top: 6px; display: flex; justify-content: space-between; }
+    
+    /* Estilo de Botones Navegación por Teclado */
+    .stButton>button {
+        width: 100%;
+        background-color: #1e222d;
+        color: #d1d4dc;
+        border: 1px solid #2a2e39;
+    }
+    .stButton>button:hover {
+        background-color: #2a2e39;
+        color: #ffffff;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -71,19 +83,16 @@ def get_logo_url(ticker_key):
     return f"https://assets.parqet.com/logos/symbol/{clean}?format=png"
 
 # ==========================================
-# BASE COMPLETA DE ACTIVOS
+# BASE COMPLETA DE ACTIVOS Y NOTAS/BANDERAS
 # ==========================================
 if "activos_dict" not in st.session_state:
     st.session_state.activos_dict = {
-        # ÍNDICES Y CRIPTO
         "US500": {"name": "S&P 500 Index", "tv": "FOREXCOM:SPXUSD", "yf": "^GSPC", "cat": "Índices"},
         "BTCUSD": {"name": "Bitcoin / USD", "tv": "BINANCE:BTCUSDT", "yf": "BTC-USD", "cat": "Cripto"},
         "ETHUSD": {"name": "Ethereum / USD", "tv": "BINANCE:ETHUSDT", "yf": "ETH-USD", "cat": "Cripto"},
         "GC": {"name": "Gold Futures", "tv": "COMEX:GC1!", "yf": "GC=F", "cat": "Commodities"},
         "SH": {"name": "ProShares Short S&P500", "tv": "NYSEARCA:SH", "yf": "SH", "cat": "ETFs"},
         "EWZ": {"name": "iShares MSCI Brazil ETF", "tv": "NYSEARCA:EWZ", "yf": "EWZ", "cat": "ETFs"},
-
-        # TECNOLOGÍA & CRECIMIENTO (US)
         "AAPL": {"name": "Apple Inc.", "tv": "NASDAQ:AAPL", "yf": "AAPL", "cat": "Tecnología"},
         "MSFT": {"name": "Microsoft Corp.", "tv": "NASDAQ:MSFT", "yf": "MSFT", "cat": "Tecnología"},
         "GOOGL": {"name": "Alphabet Inc.", "tv": "NASDAQ:GOOGL", "yf": "GOOGL", "cat": "Tecnología"},
@@ -109,8 +118,6 @@ if "activos_dict" not in st.session_state:
         "RGTI": {"name": "Rigetti Computing", "tv": "NASDAQ:RGTI", "yf": "RGTI", "cat": "Cuántica"},
         "MELI": {"name": "MercadoLibre Inc.", "tv": "NASDAQ:MELI", "yf": "MELI", "cat": "E-Commerce"},
         "BABA": {"name": "Alibaba Group", "tv": "NYSE:BABA", "yf": "BABA", "cat": "E-Commerce"},
-
-        # CONSUMO, ENTRETENIMIENTO Y CONSUMO MASIVO
         "NFLX": {"name": "Netflix Inc.", "tv": "NASDAQ:NFLX", "yf": "NFLX", "cat": "Streaming"},
         "DIS": {"name": "Walt Disney Co.", "tv": "NYSE:DIS", "yf": "DIS", "cat": "Entretenimiento"},
         "UBER": {"name": "Uber Technologies", "tv": "NYSE:UBER", "yf": "UBER", "cat": "Movilidad"},
@@ -123,8 +130,6 @@ if "activos_dict" not in st.session_state:
         "WMT": {"name": "Walmart Inc.", "tv": "NYSE:WMT", "yf": "WMT", "cat": "Retail"},
         "ABNB": {"name": "Airbnb Inc.", "tv": "NASDAQ:ABNB", "yf": "ABNB", "cat": "Turismo"},
         "NU": {"name": "Nu Holdings (Nubank)", "tv": "NYSE:NU", "yf": "NU", "cat": "Fintech"},
-
-        # MERCADO ARGENTINO (BYMA / ADRs)
         "MERV": {"name": "Índice Merval", "tv": "BCBA:IMV", "yf": "^MERV", "cat": "Mercado Argentino"},
         "BYMAM": {"name": "Bolsas y Mercados Arg.", "tv": "BCBA:BYMA", "yf": "BYMA.BA", "cat": "Mercado Argentino"},
         "BBAR": {"name": "Banco BBVA Argentina", "tv": "NYSE:BBAR", "yf": "BBAR", "cat": "Bancos Arg."},
@@ -145,6 +150,12 @@ if "activos_dict" not in st.session_state:
         "LOMA": {"name": "Loma Negra Cemento", "tv": "NYSE:LOMA", "yf": "LOMA", "cat": "Construcción Arg."},
         "PBR": {"name": "Petrobras", "tv": "NYSE:PBR", "yf": "PBR", "cat": "Energía Brasil"}
     }
+
+if "banderas" not in st.session_state:
+    st.session_state.banderas = {}
+
+if "notas" not in st.session_state:
+    st.session_state.notas = {}
 
 if "listas_personalizadas" not in st.session_state:
     st.session_state.listas_personalizadas = {
@@ -524,7 +535,7 @@ with col_main:
         """
         st.markdown(matriz_html, unsafe_allow_html=True)
 
-# --- PANEL DERECHO: WATCHLIST CON COLUMNA DE LOGOS VISIBLES ---
+# --- PANEL DERECHO: WATCHLIST INTERACTIVA + NAVEGACIÓN Y OPCIONES CONTEXTUALES ---
 with col_watchlist:
     lista_sel = st.selectbox(
         "📌 Lista Activa:",
@@ -535,6 +546,17 @@ with col_watchlist:
         st.session_state.lista_activa_sel = lista_sel
         st.session_state.idx_activo = 0
         st.rerun()
+
+    # NAVEGACIÓN POR TECLADO / BOTONES SECUENCIALES
+    col_prev, col_next = st.columns(2)
+    with col_prev:
+        if st.button("⬅️ Anterior (Arriba)"):
+            st.session_state.idx_activo = (st.session_state.idx_activo - 1) % len(keys_list)
+            st.rerun()
+    with col_next:
+        if st.button("➡️ Siguiente (Abajo)"):
+            st.session_state.idx_activo = (st.session_state.idx_activo + 1) % len(keys_list)
+            st.rerun()
 
     selected_option = st.selectbox(
         "🔍 Seleccionar Activo:",
@@ -547,12 +569,14 @@ with col_watchlist:
         st.session_state.idx_activo = selected_idx
         st.rerun()
 
-    # DATAFRAME CON COLUMNA DE LOGOS OFICIALES FORMATO IMAGEN
+    # DATAFRAME DE SEGUIMIENTO CON LOGOS Y BANDERAS
     wl_data = []
     for k in keys_list:
         m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0})
         sign = "+" if m["cbo"] >= 0 else ""
+        flag = st.session_state.banderas.get(k, "⚪")
         wl_data.append({
+            "🚩": flag,
             "Logo": get_logo_url(k),
             "Símbolo": k,
             "Última": f"${m['last']:.2f}",
@@ -571,19 +595,16 @@ with col_watchlist:
 
     styled_df = df_wl.style.map(color_variacion, subset=["Cbo", "Cambio %"])
 
-    # RENDER CON IMAGE COLUMN DE STREAMLIT
     event = st.dataframe(
         styled_df,
         use_container_width=True,
-        height=360,
+        height=320,
         hide_index=True,
         on_select="rerun",
         selection_mode="single-row",
         column_config={
-            "Logo": st.column_config.ImageColumn(
-                label="",
-                width="small"
-            )
+            "Logo": st.column_config.ImageColumn(label="", width="small"),
+            "🚩": st.column_config.TextColumn(label="", width="small")
         }
     )
 
@@ -593,18 +614,44 @@ with col_watchlist:
             st.session_state.idx_activo = clicked_row_idx
             st.rerun()
 
-    # TARJETA INFERIOR DE DETALLE CON LOGO OFICIAL
+    # MENÚ CONTEXTUAL / OPCIONES ESTILO CLIC DERECHO
+    with st.expander(f"⚙️ Opciones de {curr_key} (Clic Derecho)", expanded=False):
+        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+        if col_f1.button("🔴 Rojo"):
+            st.session_state.banderas[curr_key] = "🔴"
+            st.rerun()
+        if col_f2.button("🔵 Azul"):
+            st.session_state.banderas[curr_key] = "🔵"
+            st.rerun()
+        if col_f3.button("🟢 Verde"):
+            st.session_state.banderas[curr_key] = "🟢"
+            st.rerun()
+        if col_f4.button("⚪ Quitar"):
+            st.session_state.banderas[curr_key] = "⚪"
+            st.rerun()
+
+        # Añadir nota para el activo
+        nota_actual = st.session_state.notas.get(curr_key, "")
+        nueva_nota = st.text_input(f"Añadir nota para {curr_key}:", value=nota_actual)
+        if nueva_nota != nota_actual:
+            st.session_state.notas[curr_key] = nueva_nota
+            st.rerun()
+
+        st.markdown(f"[📊 Ver Información Financiera en TradingView](https://es.tradingview.com/symbols/{tv_symbol.replace(':', '-')}/)")
+
+    # TARJETA INFERIOR DE DETALLE CON NOTA
     curr_m = market_data.get(curr_key, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
     change_style = "val-up" if curr_m["cbo"] >= 0 else "val-down"
     sign_m = "+" if curr_m["cbo"] >= 0 else ""
     curr_logo = get_logo_url(curr_key)
+    nota_disp = st.session_state.notas.get(curr_key, "Sin notas")
 
     st.markdown(f"""
         <div class="tv-detail-card">
             <div class="tv-detail-header">
                 <img src="{curr_logo}" style="width:32px;height:32px;border-radius:50%;object-fit:contain;background-color:#1e222d;padding:2px;" onerror="this.src='https://via.placeholder.com/32/2a2e39/ffffff?text={curr_key[0]}';"/>
                 <div>
-                    <div class="tv-detail-title">{curr_key}</div>
+                    <div class="tv-detail-title">{curr_key} {st.session_state.banderas.get(curr_key, '')}</div>
                     <div class="tv-detail-sub">{curr_item['name']} • {curr_item['cat']}</div>
                 </div>
             </div>
@@ -616,5 +663,6 @@ with col_watchlist:
                 <span>Volumen Promedio:</span>
                 <span style="color:#ffffff;">{curr_m['vol']/1e6:.2f}M</span>
             </div>
+            <div style="font-size:11px; color:#ff9800; margin-top:6px;">📝 Nota: {nota_disp}</div>
         </div>
     """, unsafe_allow_html=True)
