@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS generales y estilo idéntico a TradingView
+# Estilos CSS generales y réplica visual estilo TradingView
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #d1d4dc; }
@@ -61,10 +61,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Helper para obtener URL del logo dinámico
-def get_logo_url(yf_ticker):
-    clean_ticker = yf_ticker.replace(".BA", "").replace("^", "").replace("-USD", "").replace("GC=F", "GOLD")
-    return f"https://assets.parqet.com/logos/symbol/{clean_ticker}?format=jpg"
+# Helper para obtener el LOGO OFICIAL ORIGINAL desde CDN de TradingView / Parqet
+def get_logo_url(ticker_key):
+    # Limpieza de sufijos para buscar el logo vectorial/oficial
+    clean = ticker_key.replace("USD", "").replace("M", "").replace("2M", "")
+    if clean == "US500" or clean == "MERV":
+        return f"https://s3-symbol-logo.tradingview.com/indices/{clean.lower()}--big.svg"
+    elif clean in ["BTC", "ETH"]:
+        return f"https://s3-symbol-logo.tradingview.com/crypto/XTVC{clean}--big.svg"
+    return f"https://assets.parqet.com/logos/symbol/{clean}?format=png"
 
 # ==========================================
 # BASE COMPLETA DE ACTIVOS SOLICITADOS
@@ -72,74 +77,74 @@ def get_logo_url(yf_ticker):
 if "activos_dict" not in st.session_state:
     st.session_state.activos_dict = {
         # ÍNDICES Y CRIPTO
-        "US500": {"name": "S&P 500 Index", "tv": "FOREXCOM:SPXUSD", "yf": "^GSPC", "cat": "Índices", "symbol": "🇺🇸"},
-        "BTCUSD": {"name": "Bitcoin / USD", "tv": "BINANCE:BTCUSDT", "yf": "BTC-USD", "cat": "Cripto", "symbol": "₿"},
-        "ETHUSD": {"name": "Ethereum / USD", "tv": "BINANCE:ETHUSDT", "yf": "ETH-USD", "cat": "Cripto", "symbol": "Ξ"},
-        "GC": {"name": "Gold Futures", "tv": "COMEX:GC1!", "yf": "GC=F", "cat": "Commodities", "symbol": "🪙"},
-        "SH": {"name": "ProShares Short S&P500", "tv": "NYSEARCA:SH", "yf": "SH", "cat": "ETFs", "symbol": "📉"},
-        "EWZ": {"name": "iShares MSCI Brazil ETF", "tv": "NYSEARCA:EWZ", "yf": "EWZ", "cat": "ETFs", "symbol": "🇧🇷"},
+        "US500": {"name": "S&P 500 Index", "tv": "FOREXCOM:SPXUSD", "yf": "^GSPC", "cat": "Índices"},
+        "BTCUSD": {"name": "Bitcoin / USD", "tv": "BINANCE:BTCUSDT", "yf": "BTC-USD", "cat": "Cripto"},
+        "ETHUSD": {"name": "Ethereum / USD", "tv": "BINANCE:ETHUSDT", "yf": "ETH-USD", "cat": "Cripto"},
+        "GC": {"name": "Gold Futures", "tv": "COMEX:GC1!", "yf": "GC=F", "cat": "Commodities"},
+        "SH": {"name": "ProShares Short S&P500", "tv": "NYSEARCA:SH", "yf": "SH", "cat": "ETFs"},
+        "EWZ": {"name": "iShares MSCI Brazil ETF", "tv": "NYSEARCA:EWZ", "yf": "EWZ", "cat": "ETFs"},
 
         # TECNOLOGÍA & CRECIMIENTO (US)
-        "AAPL": {"name": "Apple Inc.", "tv": "NASDAQ:AAPL", "yf": "AAPL", "cat": "Tecnología", "symbol": "🍎"},
-        "MSFT": {"name": "Microsoft Corp.", "tv": "NASDAQ:MSFT", "yf": "MSFT", "cat": "Tecnología", "symbol": "💻"},
-        "GOOGL": {"name": "Alphabet Inc.", "tv": "NASDAQ:GOOGL", "yf": "GOOGL", "cat": "Tecnología", "symbol": "🔍"},
-        "NVDA": {"name": "NVIDIA Corp.", "tv": "NASDAQ:NVDA", "yf": "NVDA", "cat": "Semiconductores", "symbol": "🟢"},
-        "AMD": {"name": "Advanced Micro Devices", "tv": "NASDAQ:AMD", "yf": "AMD", "cat": "Semiconductores", "symbol": "🔴"},
-        "INTC": {"name": "Intel Corp.", "tv": "NASDAQ:INTC", "yf": "INTC", "cat": "Semiconductores", "symbol": "🔵"},
-        "MU": {"name": "Micron Technology", "tv": "NASDAQ:MU", "yf": "MU", "cat": "Semiconductores", "symbol": "💾"},
-        "AMZN": {"name": "Amazon.com Inc.", "tv": "NASDAQ:AMZN", "yf": "AMZN", "cat": "E-Commerce", "symbol": "📦"},
-        "META": {"name": "Meta Platforms", "tv": "NASDAQ:META", "yf": "META", "cat": "Tecnología", "symbol": "♾️"},
-        "TSLA": {"name": "Tesla Inc.", "tv": "NASDAQ:TSLA", "yf": "TSLA", "cat": "Automotriz", "symbol": "⚡"},
-        "MSTR": {"name": "MicroStrategy Inc.", "tv": "NASDAQ:MSTR", "yf": "MSTR", "cat": "Tecnología", "symbol": "🟠"},
-        "PYPL": {"name": "PayPal Holdings", "tv": "NASDAQ:PYPL", "yf": "PYPL", "cat": "Fintech", "symbol": "💳"},
-        "UPST": {"name": "Upstart Holdings", "tv": "NASDAQ:UPST", "yf": "UPST", "cat": "Fintech", "symbol": "🚀"},
-        "GLOB": {"name": "Globant S.A.", "tv": "NYSE:GLOB", "yf": "GLOB", "cat": "Software", "symbol": "🌐"},
-        "CSCO": {"name": "Cisco Systems", "tv": "NASDAQ:CSCO", "yf": "CSCO", "cat": "Redes", "symbol": "🔌"},
-        "IBM": {"name": "IBM Corp.", "tv": "NYSE:IBM", "yf": "IBM", "cat": "Tecnología", "symbol": "🏢"},
-        "SPOT": {"name": "Spotify Technology", "tv": "NYSE:SPOT", "yf": "SPOT", "cat": "Entretenimiento", "symbol": "🎧"},
-        "CRM": {"name": "Salesforce Inc.", "tv": "NYSE:CRM", "yf": "CRM", "cat": "Software", "symbol": "☁️"},
-        "ACN": {"name": "Accenture plc", "tv": "NYSE:ACN", "yf": "ACN", "cat": "Consultoría", "symbol": "📐"},
-        "ADBE": {"name": "Adobe Inc.", "tv": "NASDAQ:ADBE", "yf": "ADBE", "cat": "Software", "symbol": "🎨"},
-        "PLTR": {"name": "Palantir Technologies", "tv": "NYSE:PLTR", "yf": "PLTR", "cat": "Software", "symbol": "👁️"},
-        "CRCL": {"name": "Circle K / Circle", "tv": "NYSE:CRCL", "yf": "CRCL", "cat": "Fintech", "symbol": "⭕"},
-        "RGTI": {"name": "Rigetti Computing", "tv": "NASDAQ:RGTI", "yf": "RGTI", "cat": "Cúantica", "symbol": "⚛️"},
-        "MELI": {"name": "MercadoLibre Inc.", "tv": "NASDAQ:MELI", "yf": "MELI", "cat": "E-Commerce", "symbol": "🟡"},
-        "BABA": {"name": "Alibaba Group", "tv": "NYSE:BABA", "yf": "BABA", "cat": "E-Commerce", "symbol": "🇨🇳"},
+        "AAPL": {"name": "Apple Inc.", "tv": "NASDAQ:AAPL", "yf": "AAPL", "cat": "Tecnología"},
+        "MSFT": {"name": "Microsoft Corp.", "tv": "NASDAQ:MSFT", "yf": "MSFT", "cat": "Tecnología"},
+        "GOOGL": {"name": "Alphabet Inc.", "tv": "NASDAQ:GOOGL", "yf": "GOOGL", "cat": "Tecnología"},
+        "NVDA": {"name": "NVIDIA Corp.", "tv": "NASDAQ:NVDA", "yf": "NVDA", "cat": "Semiconductores"},
+        "AMD": {"name": "Advanced Micro Devices", "tv": "NASDAQ:AMD", "yf": "AMD", "cat": "Semiconductores"},
+        "INTC": {"name": "Intel Corp.", "tv": "NASDAQ:INTC", "yf": "INTC", "cat": "Semiconductores"},
+        "MU": {"name": "Micron Technology", "tv": "NASDAQ:MU", "yf": "MU", "cat": "Semiconductores"},
+        "AMZN": {"name": "Amazon.com Inc.", "tv": "NASDAQ:AMZN", "yf": "AMZN", "cat": "E-Commerce"},
+        "META": {"name": "Meta Platforms", "tv": "NASDAQ:META", "yf": "META", "cat": "Tecnología"},
+        "TSLA": {"name": "Tesla Inc.", "tv": "NASDAQ:TSLA", "yf": "TSLA", "cat": "Automotriz"},
+        "MSTR": {"name": "MicroStrategy Inc.", "tv": "NASDAQ:MSTR", "yf": "MSTR", "cat": "Tecnología"},
+        "PYPL": {"name": "PayPal Holdings", "tv": "NASDAQ:PYPL", "yf": "PYPL", "cat": "Fintech"},
+        "UPST": {"name": "Upstart Holdings", "tv": "NASDAQ:UPST", "yf": "UPST", "cat": "Fintech"},
+        "GLOB": {"name": "Globant S.A.", "tv": "NYSE:GLOB", "yf": "GLOB", "cat": "Software"},
+        "CSCO": {"name": "Cisco Systems", "tv": "NASDAQ:CSCO", "yf": "CSCO", "cat": "Redes"},
+        "IBM": {"name": "IBM Corp.", "tv": "NYSE:IBM", "yf": "IBM", "cat": "Tecnología"},
+        "SPOT": {"name": "Spotify Technology", "tv": "NYSE:SPOT", "yf": "SPOT", "cat": "Entretenimiento"},
+        "CRM": {"name": "Salesforce Inc.", "tv": "NYSE:CRM", "yf": "CRM", "cat": "Software"},
+        "ACN": {"name": "Accenture plc", "tv": "NYSE:ACN", "yf": "ACN", "cat": "Consultoría"},
+        "ADBE": {"name": "Adobe Inc.", "tv": "NASDAQ:ADBE", "yf": "ADBE", "cat": "Software"},
+        "PLTR": {"name": "Palantir Technologies", "tv": "NYSE:PLTR", "yf": "PLTR", "cat": "Software"},
+        "CRCL": {"name": "Circle K / Circle", "tv": "NYSE:CRCL", "yf": "CRCL", "cat": "Fintech"},
+        "RGTI": {"name": "Rigetti Computing", "tv": "NASDAQ:RGTI", "yf": "RGTI", "cat": "Cuántica"},
+        "MELI": {"name": "MercadoLibre Inc.", "tv": "NASDAQ:MELI", "yf": "MELI", "cat": "E-Commerce"},
+        "BABA": {"name": "Alibaba Group", "tv": "NYSE:BABA", "yf": "BABA", "cat": "E-Commerce"},
 
         # CONSUMO, ENTRETENIMIENTO Y CONSUMO MASIVO
-        "NFLX": {"name": "Netflix Inc.", "tv": "NASDAQ:NFLX", "yf": "NFLX", "cat": "Streaming", "symbol": "🎬"},
-        "DIS": {"name": "Walt Disney Co.", "tv": "NYSE:DIS", "yf": "DIS", "cat": "Entretenimiento", "symbol": "🏰"},
-        "UBER": {"name": "Uber Technologies", "tv": "NYSE:UBER", "yf": "UBER", "cat": "Movilidad", "symbol": "🚗"},
-        "MCD": {"name": "McDonald's Corp.", "tv": "NYSE:MCD", "yf": "MCD", "cat": "Consumo", "symbol": "🍔"},
-        "KO": {"name": "Coca-Cola Co.", "tv": "NYSE:KO", "yf": "KO", "cat": "Bebidas", "symbol": "🥤"},
-        "PEP": {"name": "PepsiCo Inc.", "tv": "NASDAQ:PEP", "yf": "PEP", "cat": "Bebidas", "symbol": "🔵"},
-        "CL": {"name": "Colgate-Palmolive", "tv": "NYSE:CL", "yf": "CL", "cat": "Consumo Masivo", "symbol": "🪥"},
-        "NKE": {"name": "Nike Inc.", "tv": "NYSE:NKE", "yf": "NKE", "cat": "Consumo", "symbol": "👟"},
-        "GM": {"name": "General Motors", "tv": "NYSE:GM", "yf": "GM", "cat": "Automotriz", "symbol": "🚘"},
-        "WMT": {"name": "Walmart Inc.", "tv": "NYSE:WMT", "yf": "WMT", "cat": "Retail", "symbol": "🛒"},
-        "ABNB": {"name": "Airbnb Inc.", "tv": "NASDAQ:ABNB", "yf": "ABNB", "cat": "Turismo", "symbol": "🏠"},
-        "NU": {"name": "Nu Holdings (Nubank)", "tv": "NYSE:NU", "yf": "NU", "cat": "Fintech", "symbol": "💜"},
+        "NFLX": {"name": "Netflix Inc.", "tv": "NASDAQ:NFLX", "yf": "NFLX", "cat": "Streaming"},
+        "DIS": {"name": "Walt Disney Co.", "tv": "NYSE:DIS", "yf": "DIS", "cat": "Entretenimiento"},
+        "UBER": {"name": "Uber Technologies", "tv": "NYSE:UBER", "yf": "UBER", "cat": "Movilidad"},
+        "MCD": {"name": "McDonald's Corp.", "tv": "NYSE:MCD", "yf": "MCD", "cat": "Consumo"},
+        "KO": {"name": "Coca-Cola Co.", "tv": "NYSE:KO", "yf": "KO", "cat": "Bebidas"},
+        "PEP": {"name": "PepsiCo Inc.", "tv": "NASDAQ:PEP", "yf": "PEP", "cat": "Bebidas"},
+        "CL": {"name": "Colgate-Palmolive", "tv": "NYSE:CL", "yf": "CL", "cat": "Consumo Masivo"},
+        "NKE": {"name": "Nike Inc.", "tv": "NYSE:NKE", "yf": "NKE", "cat": "Consumo"},
+        "GM": {"name": "General Motors", "tv": "NYSE:GM", "yf": "GM", "cat": "Automotriz"},
+        "WMT": {"name": "Walmart Inc.", "tv": "NYSE:WMT", "yf": "WMT", "cat": "Retail"},
+        "ABNB": {"name": "Airbnb Inc.", "tv": "NASDAQ:ABNB", "yf": "ABNB", "cat": "Turismo"},
+        "NU": {"name": "Nu Holdings (Nubank)", "tv": "NYSE:NU", "yf": "NU", "cat": "Fintech"},
 
         # MERCADO ARGENTINO (BYMA / ADRs)
-        "MERV": {"name": "Índice Merval", "tv": "BCBA:IMV", "yf": "^MERV", "cat": "Mercado Argentino", "symbol": "🇦🇷"},
-        "BYMAM": {"name": "Bolsas y Mercados Arg.", "tv": "BCBA:BYMA", "yf": "BYMA.BA", "cat": "Mercado Argentino", "symbol": "🏛️"},
-        "BBAR": {"name": "Banco BBVA Argentina", "tv": "NYSE:BBAR", "yf": "BBAR", "cat": "Bancos Arg.", "symbol": "🏦"},
-        "GGAL": {"name": "Grupo Fin. Galicia", "tv": "NASDAQ:GGAL", "yf": "GGAL", "cat": "Bancos Arg.", "symbol": "🏦"},
-        "SUPV": {"name": "Grupo Supervielle", "tv": "NYSE:SUPV", "yf": "SUPV", "cat": "Bancos Arg.", "symbol": "🏦"},
-        "BMA": {"name": "Banco Macro", "tv": "NYSE:BMA", "yf": "BMA", "cat": "Bancos Arg.", "symbol": "🏦"},
-        "VALO": {"name": "Grupo Financiero Valores", "tv": "BCBA:VALO", "yf": "VALO.BA", "cat": "Bancos Arg.", "symbol": "🏦"},
-        "CEPU": {"name": "Central Puerto", "tv": "NYSE:CEPU", "yf": "CEPU", "cat": "Energía Arg.", "symbol": "💡"},
-        "YPF": {"name": "YPF S.A.", "tv": "NYSE:YPF", "yf": "YPF", "cat": "Energía Arg.", "symbol": "🛢️"},
-        "PAM": {"name": "Pampa Energía", "tv": "NYSE:PAM", "yf": "PAM", "cat": "Energía Arg.", "symbol": "⚡"},
-        "VIST": {"name": "Vista Energy", "tv": "NYSE:VIST", "yf": "VIST", "cat": "Energía Arg.", "symbol": "🛢️"},
-        "IRS": {"name": "Irsa Inversiones y Rep.", "tv": "NYSE:IRS", "yf": "IRS", "cat": "Bienes Raíces Arg.", "symbol": "🏢"},
-        "ALUA": {"name": "Aluar Aluminio Arg.", "tv": "BCBA:ALUA", "yf": "ALUA.BA", "cat": "Industria Arg.", "symbol": "🏗️"},
-        "EDN": {"name": "Edenor S.A.", "tv": "NYSE:EDN", "yf": "EDN", "cat": "Energía Arg.", "symbol": "🔌"},
-        "TGS": {"name": "Transportadora Gas del Sur", "tv": "NYSE:TGS", "yf": "TGS", "cat": "Energía Arg.", "symbol": "🔥"},
-        "TGSU2M": {"name": "TGS Clase B (BYMA)", "tv": "BCBA:TGSU2", "yf": "TGSU2.BA", "cat": "Energía Arg.", "symbol": "🔥"},
-        "TRANM": {"name": "Transener (BYMA)", "tv": "BCBA:TRAN", "yf": "TRAN.BA", "cat": "Energía Arg.", "symbol": "⚡"},
-        "LOMA": {"name": "Loma Negra Cemento", "tv": "NYSE:LOMA", "yf": "LOMA", "cat": "Construcción Arg.", "symbol": "🧱"},
-        "PBR": {"name": "Petrobras", "tv": "NYSE:PBR", "yf": "PBR", "cat": "Energía Brasil", "symbol": "🇧🇷"}
+        "MERV": {"name": "Índice Merval", "tv": "BCBA:IMV", "yf": "^MERV", "cat": "Mercado Argentino"},
+        "BYMAM": {"name": "Bolsas y Mercados Arg.", "tv": "BCBA:BYMA", "yf": "BYMA.BA", "cat": "Mercado Argentino"},
+        "BBAR": {"name": "Banco BBVA Argentina", "tv": "NYSE:BBAR", "yf": "BBAR", "cat": "Bancos Arg."},
+        "GGAL": {"name": "Grupo Fin. Galicia", "tv": "NASDAQ:GGAL", "yf": "GGAL", "cat": "Bancos Arg."},
+        "SUPV": {"name": "Grupo Supervielle", "tv": "NYSE:SUPV", "yf": "SUPV", "cat": "Bancos Arg."},
+        "BMA": {"name": "Banco Macro", "tv": "NYSE:BMA", "yf": "BMA", "cat": "Bancos Arg."},
+        "VALO": {"name": "Grupo Financiero Valores", "tv": "BCBA:VALO", "yf": "VALO.BA", "cat": "Bancos Arg."},
+        "CEPU": {"name": "Central Puerto", "tv": "NYSE:CEPU", "yf": "CEPU", "cat": "Energía Arg."},
+        "YPF": {"name": "YPF S.A.", "tv": "NYSE:YPF", "yf": "YPF", "cat": "Energía Arg."},
+        "PAM": {"name": "Pampa Energía", "tv": "NYSE:PAM", "yf": "PAM", "cat": "Energía Arg."},
+        "VIST": {"name": "Vista Energy", "tv": "NYSE:VIST", "yf": "VIST", "cat": "Energía Arg."},
+        "IRS": {"name": "Irsa Inversiones y Rep.", "tv": "NYSE:IRS", "yf": "IRS", "cat": "Bienes Raíces Arg."},
+        "ALUA": {"name": "Aluar Aluminio Arg.", "tv": "BCBA:ALUA", "yf": "ALUA.BA", "cat": "Industria Arg."},
+        "EDN": {"name": "Edenor S.A.", "tv": "NYSE:EDN", "yf": "EDN", "cat": "Energía Arg."},
+        "TGS": {"name": "Transportadora Gas del Sur", "tv": "NYSE:TGS", "yf": "TGS", "cat": "Energía Arg."},
+        "TGSU2M": {"name": "TGS Clase B (BYMA)", "tv": "BCBA:TGSU2", "yf": "TGSU2.BA", "cat": "Energía Arg."},
+        "TRANM": {"name": "Transener (BYMA)", "tv": "BCBA:TRAN", "yf": "TRAN.BA", "cat": "Energía Arg."},
+        "LOMA": {"name": "Loma Negra Cemento", "tv": "NYSE:LOMA", "yf": "LOMA", "cat": "Construcción Arg."},
+        "PBR": {"name": "Petrobras", "tv": "NYSE:PBR", "yf": "PBR", "cat": "Energía Brasil"}
     }
 
 if "listas_personalizadas" not in st.session_state:
@@ -147,7 +152,7 @@ if "listas_personalizadas" not in st.session_state:
         "Lista Completa": list(st.session_state.activos_dict.keys()),
         "Tecnología & Crecimiento": ["AAPL", "MSFT", "GOOGL", "NVDA", "AMD", "TSLA", "MSTR", "PLTR", "ADBE"],
         "Mercado Argentino (BYMA / ADRs)": ["MERV", "YPF", "PAM", "GGAL", "BMA", "VIST", "CEPU", "TGS", "ALUA", "EDN"],
-        "Cripto & commodities": ["BTCUSD", "ETHUSD", "GC", "MSTR"]
+        "Cripto & Commodities": ["BTCUSD", "ETHUSD", "GC", "MSTR"]
     }
 
 if "lista_activa_sel" not in st.session_state:
@@ -387,39 +392,20 @@ curr_item = st.session_state.activos_dict[curr_key]
 tv_symbol = curr_item["tv"]
 yf_symbol = curr_item["yf"]
 
-# --- PANEL IZQUIERDO: GRÁFICO + MATRIZ ---
+# --- PANEL IZQUIERDO: GRÁFICO CON TU DISEÑO UhOSsQJ7 + MATRIZ ---
 with col_main:
-    st.markdown(f"### 📊 {curr_item.get('symbol', '')} {curr_key} - {curr_item['name']} ({curr_item['cat']})")
+    st.markdown(f"### 📊 {curr_key} - {curr_item['name']} ({curr_item['cat']})")
     
-    template_tv = """
-    <div class="tradingview-widget-container" style="height:100%;width:100%">
-      <div id="tradingview_chart" style="height:500px;width:100%"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-      <script type="text/javascript">
-        new TradingView.widget({
-          "autosize": true,
-          "symbol": "SYMBOL_PLACEHOLDER",
-          "interval": "TIMEFRAME_PLACEHOLDER",
-          "timezone": "America/Argentina/Jujuy",
-          "theme": "dark",
-          "style": "1",
-          "locale": "es",
-          "toolbar_bg": "#1e222d",
-          "enable_publishing": false,
-          "allow_symbol_change": true,
-          "container_id": "tradingview_chart",
-          "hide_side_toolbar": false,
-          "studies": [
-            "RSI@tv-basicstudies",
-            "MACD@tv-basicstudies",
-            "MASimple@tv-basicstudies"
-          ]
-        });
-      </script>
-    </div>
+    tradingview_iframe = f"""
+    <iframe 
+        src="https://es.tradingview.com/chart/UhOSsQJ7/?symbol={tv_symbol}" 
+        width="100%" 
+        height="510" 
+        frameborder="0" 
+        allowfullscreen>
+    </iframe>
     """
-    tradingview_html = template_tv.replace("SYMBOL_PLACEHOLDER", tv_symbol).replace("TIMEFRAME_PLACEHOLDER", tv_tf_code)
-    components.html(tradingview_html, height=510)
+    components.html(tradingview_iframe, height=510)
     
     res = calcular_matriz_pine(
         yf_symbol, yf_interval, yf_period,
@@ -532,28 +518,24 @@ with col_watchlist:
         st.session_state.idx_activo = 0
         st.rerun()
 
-    # Selector sincronizado con icono/símbolo de cada activo
-    formatted_options = [f"{st.session_state.activos_dict[k].get('symbol', '▪️')} {k}" for k in keys_list]
-    
     selected_option = st.selectbox(
         "🔍 Seleccionar Activo:",
-        options=formatted_options,
+        options=keys_list,
         index=st.session_state.idx_activo
     )
     
-    selected_idx = formatted_options.index(selected_option)
+    selected_idx = keys_list.index(selected_option)
     if selected_idx != st.session_state.idx_activo:
         st.session_state.idx_activo = selected_idx
         st.rerun()
 
-    # DATAFRAME INTERACTIVO DE SEGIMIENTO
+    # DATAFRAME INTERACTIVO DE SEGUIMIENTO CON LOGOS OFICIALES
     wl_data = []
     for k in keys_list:
         m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0})
         sign = "+" if m["cbo"] >= 0 else ""
-        item_sym = st.session_state.activos_dict[k].get("symbol", "▪️")
         wl_data.append({
-            "Símbolo": f"{item_sym} {k}",
+            "Símbolo": k,
             "Última": f"${m['last']:.2f}",
             "Cbo": f"{sign}{m['cbo']:.2f}",
             "Cambio %": f"{sign}{m['cbo_pct']:.2f}%"
@@ -571,18 +553,18 @@ with col_watchlist:
     styled_df = df_wl.style.map(color_variacion, subset=["Cbo", "Cambio %"])
     st.dataframe(styled_df, use_container_width=True, height=360, hide_index=True)
 
-    # TARJETA INFERIOR DE DETALLE DE COMPAÑÍA
+    # TARJETA INFERIOR CON EL LOGO ORIGINAL COMPLETO DEL ACTIVO SELECCIONADO
     curr_m = market_data.get(curr_key, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
     change_style = "val-up" if curr_m["cbo"] >= 0 else "val-down"
     sign_m = "+" if curr_m["cbo"] >= 0 else ""
-    curr_logo = get_logo_url(curr_item["yf"])
+    curr_logo = get_logo_url(curr_key)
 
     st.markdown(f"""
         <div class="tv-detail-card">
             <div class="tv-detail-header">
-                <img src="{curr_logo}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" onerror="this.src='https://via.placeholder.com/28/2a2e39/ffffff?text={curr_key[0]}';"/>
+                <img src="{curr_logo}" style="width:32px;height:32px;border-radius:50%;object-fit:contain;background-color:#1e222d;padding:2px;" onerror="this.src='https://via.placeholder.com/32/2a2e39/ffffff?text={curr_key[0]}';"/>
                 <div>
-                    <div class="tv-detail-title">{curr_item.get('symbol', '')} {curr_key}</div>
+                    <div class="tv-detail-title">{curr_key}</div>
                     <div class="tv-detail-sub">{curr_item['name']} • {curr_item['cat']}</div>
                 </div>
             </div>
