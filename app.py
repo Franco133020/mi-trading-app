@@ -63,9 +63,8 @@ st.markdown("""
 
 # Helper para obtener el LOGO OFICIAL ORIGINAL desde CDN de TradingView / Parqet
 def get_logo_url(ticker_key):
-    # Limpieza de sufijos para buscar el logo vectorial/oficial
     clean = ticker_key.replace("USD", "").replace("M", "").replace("2M", "")
-    if clean == "US500" or clean == "MERV":
+    if clean in ["US500", "MERV"]:
         return f"https://s3-symbol-logo.tradingview.com/indices/{clean.lower()}--big.svg"
     elif clean in ["BTC", "ETH"]:
         return f"https://s3-symbol-logo.tradingview.com/crypto/XTVC{clean}--big.svg"
@@ -392,20 +391,40 @@ curr_item = st.session_state.activos_dict[curr_key]
 tv_symbol = curr_item["tv"]
 yf_symbol = curr_item["yf"]
 
-# --- PANEL IZQUIERDO: GRÁFICO CON TU DISEÑO UhOSsQJ7 + MATRIZ ---
+# --- PANEL IZQUIERDO: WIDGET OFICIAL DE TRADINGVIEW + MATRIZ ---
 with col_main:
     st.markdown(f"### 📊 {curr_key} - {curr_item['name']} ({curr_item['cat']})")
     
-    tradingview_iframe = f"""
-    <iframe 
-        src="https://es.tradingview.com/chart/UhOSsQJ7/?symbol={tv_symbol}" 
-        width="100%" 
-        height="510" 
-        frameborder="0" 
-        allowfullscreen>
-    </iframe>
+    # Widget embebible oficial de TradingView (previene error de conexión)
+    template_tv = """
+    <div class="tradingview-widget-container" style="height:100%;width:100%">
+      <div id="tradingview_chart" style="height:500px;width:100%"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      <script type="text/javascript">
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": "SYMBOL_PLACEHOLDER",
+          "interval": "TIMEFRAME_PLACEHOLDER",
+          "timezone": "America/Argentina/Jujuy",
+          "theme": "dark",
+          "style": "1",
+          "locale": "es",
+          "toolbar_bg": "#1e222d",
+          "enable_publishing": false,
+          "allow_symbol_change": true,
+          "container_id": "tradingview_chart",
+          "hide_side_toolbar": false,
+          "studies": [
+            "RSI@tv-basicstudies",
+            "MACD@tv-basicstudies",
+            "MASimple@tv-basicstudies"
+          ]
+        });
+      </script>
+    </div>
     """
-    components.html(tradingview_iframe, height=510)
+    tradingview_html = template_tv.replace("SYMBOL_PLACEHOLDER", tv_symbol).replace("TIMEFRAME_PLACEHOLDER", tv_tf_code)
+    components.html(tradingview_html, height=510)
     
     res = calcular_matriz_pine(
         yf_symbol, yf_interval, yf_period,
