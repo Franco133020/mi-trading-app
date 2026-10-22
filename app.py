@@ -12,24 +12,24 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS generales
+# Estilos CSS generales y réplica exacta de la Watchlist de TradingView
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #d1d4dc; }
     div[data-testid="stSidebar"] { background-color: #161922; }
     
-    /* Tabla Matricial */
+    /* Tabla Matricial Inferior */
     .matriz-table {
         width: 100%;
         border-collapse: collapse;
-        font-family: Arial, sans-serif;
-        font-size: 12px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 11px;
         color: white;
-        margin-top: 15px;
+        margin-top: 10px;
     }
     .matriz-table th, .matriz-table td {
         border: 1px solid #2a2e39;
-        padding: 6px;
+        padding: 5px;
         text-align: center;
     }
     .matriz-header { background-color: #1e222d; font-weight: bold; }
@@ -41,24 +41,60 @@ st.markdown("""
     .bg-teal { background-color: #00796b; color: white; }
     .bg-purple { background-color: #4a148c; color: white; }
     .bg-gold { background-color: #f57f17; color: white; }
-
-    /* Tarjeta de Información Financiera del Activo */
+    
+    /* Estilos de Watchlist idénticos a TradingView */
+    .tv-wl-container {
+        background-color: #131722;
+        border: 1px solid #2a2e39;
+        border-radius: 4px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 12px;
+        overflow: hidden;
+    }
+    .tv-wl-table {
+        width: 100%;
+        border-collapse: collapse;
+        color: #d1d4dc;
+    }
+    .tv-wl-table th {
+        background-color: #1e222d;
+        color: #787b86;
+        font-weight: 500;
+        font-size: 11px;
+        text-align: right;
+        padding: 6px 8px;
+        border-bottom: 1px solid #2a2e39;
+    }
+    .tv-wl-table th:first-child { text-align: left; }
+    .tv-wl-row {
+        cursor: pointer;
+        border-bottom: 1px solid #1e222d;
+        transition: background-color 0.15s ease;
+    }
+    .tv-wl-row:hover { background-color: #2a2e39; }
+    .tv-wl-row.selected { background-color: #1e222d; border-left: 3px solid #2962ff; }
+    .tv-wl-td { padding: 6px 8px; text-align: right; white-space: nowrap; }
+    .tv-wl-td-sym { text-align: left; font-weight: bold; color: #ffffff; display: flex; align-items: center; gap: 6px; }
+    .tv-flag { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .flag-red { background-color: #ef5350; }
+    .flag-blue { background-color: #2962ff; }
+    .val-up { color: #26a69a; }
+    .val-down { color: #ef5350; }
+    
+    /* Tarjeta Inferior de Detalle */
     .tv-detail-card {
         background-color: #131722;
         border: 1px solid #2a2e39;
-        border-radius: 6px;
+        border-radius: 4px;
         padding: 12px;
         margin-top: 10px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     .tv-detail-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-    .tv-detail-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background-color: #2a2e39; }
     .tv-detail-title { font-size: 16px; font-weight: bold; color: #ffffff; }
-    .tv-detail-sub { font-size: 11px; color: #787b86; margin-bottom: 8px; }
-    .tv-detail-price { font-size: 22px; font-weight: bold; color: #ffffff; }
-    .tv-detail-change-up { font-size: 13px; font-weight: bold; color: #26a69a; }
-    .tv-detail-change-down { font-size: 13px; font-weight: bold; color: #ef5350; }
-    .tv-detail-meta { font-size: 10px; color: #787b86; margin-top: 6px; }
+    .tv-detail-sub { font-size: 11px; color: #787b86; }
+    .tv-detail-price { font-size: 22px; font-weight: bold; color: #ffffff; margin-top: 4px; }
+    .tv-detail-meta { font-size: 11px; color: #787b86; margin-top: 6px; display: flex; justify-content: space-between; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -68,15 +104,12 @@ def get_logo_url(yf_ticker):
     return f"https://assets.parqet.com/logos/symbol/{clean_ticker}?format=jpg"
 
 # ==========================================
-# INICIALIZACIÓN DE LA BASE DE ACTIVOS Y LISTAS
+# BASE DE ACTIVOS Y LISTAS
 # ==========================================
 if "activos_dict" not in st.session_state:
     st.session_state.activos_dict = {
-        # ÍNDICES
         "SPX": {"name": "S&P 500 Index", "tv": "SP:SPX", "yf": "^GSPC", "cat": "Indices"},
         "RSP": {"name": "S&P 500 Equal Weight", "tv": "AMEX:RSP", "yf": "RSP", "cat": "Indices"},
-        
-        # SECTORES
         "IBB": {"name": "Biotechnology ETF", "tv": "NASDAQ:IBB", "yf": "IBB", "cat": "Sectores"},
         "IGV": {"name": "Software ETF", "tv": "BATS:IGV", "yf": "IGV", "cat": "Sectores"},
         "IHAK": {"name": "Cybersecurity ETF", "tv": "NYSEARCA:IHAK", "yf": "IHAK", "cat": "Sectores"},
@@ -90,8 +123,6 @@ if "activos_dict" not in st.session_state:
         "XLF": {"name": "Financial Select Sector", "tv": "AMEX:XLF", "yf": "XLF", "cat": "Sectores"},
         "XLI": {"name": "Industrial Select Sector", "tv": "AMEX:XLI", "yf": "XLI", "cat": "Sectores"},
         "XLK": {"name": "Technology Select Sector", "tv": "AMEX:XLK", "yf": "XLK", "cat": "Sectores"},
-        
-        # INTERNACIONAL
         "UBER": {"name": "Uber Technologies Inc.", "tv": "NYSE:UBER", "yf": "UBER", "cat": "Internacional"},
         "MCD": {"name": "McDonald's Corp.", "tv": "NYSE:MCD", "yf": "MCD", "cat": "Internacional"},
         "DIS": {"name": "Walt Disney Co.", "tv": "NYSE:DIS", "yf": "DIS", "cat": "Internacional"},
@@ -104,8 +135,6 @@ if "activos_dict" not in st.session_state:
         "JPM": {"name": "JPMorgan Chase", "tv": "NYSE:JPM", "yf": "JPM", "cat": "Internacional"},
         "V": {"name": "Visa Inc.", "tv": "NYSE:V", "yf": "V", "cat": "Internacional"},
         "MA": {"name": "Mastercard Inc.", "tv": "NYSE:MA", "yf": "MA", "cat": "Internacional"},
-
-        # MERCADO ARGENTINO (BCBA)
         "IMV": {"name": "Índice Merval", "tv": "BCBA:IMV", "yf": "^MERV", "cat": "Mercado Argentino"},
         "YPFD": {"name": "YPF S.A.", "tv": "BCBA:YPFD", "yf": "YPFD.BA", "cat": "Mercado Argentino"},
         "PAMP": {"name": "Pampa Energía", "tv": "BCBA:PAMP", "yf": "PAMP.BA", "cat": "Mercado Argentino"},
@@ -124,12 +153,11 @@ if "lista_activa_sel" not in st.session_state:
     st.session_state.lista_activa_sel = "Lista de seguimiento"
 
 keys_list = st.session_state.listas_personalizadas[st.session_state.lista_activa_sel]
-
 if "idx_activo" not in st.session_state or st.session_state.idx_activo >= len(keys_list):
     st.session_state.idx_activo = 0
 
 # ==========================================
-# OBTENCIÓN DE DATOS DE MERCADO
+# DATOS EN TIEMPO REAL
 # ==========================================
 @st.cache_data(ttl=30)
 def obtener_cotizaciones_watchlist(activos_dict):
@@ -163,10 +191,9 @@ def obtener_cotizaciones_watchlist(activos_dict):
 market_data = obtener_cotizaciones_watchlist(st.session_state.activos_dict)
 
 # ==========================================
-# BARRA LATERAL: PARÁMETROS DEL SCORING
+# BARRA LATERAL (CONFIGURACIÓN DE PARÁMETROS)
 # ==========================================
 st.sidebar.header("⚙️ Configuración del Scoring")
-
 timeframe_map = {
     "1 Minuto": {"tv": "1", "yf_interval": "1m", "yf_period": "7d"},
     "5 Minutos": {"tv": "5", "yf_interval": "5m", "yf_period": "30d"},
@@ -176,7 +203,6 @@ timeframe_map = {
     "Diario (1D)": {"tv": "D", "yf_interval": "1d", "yf_period": "5y"},
     "Semanal (1W)": {"tv": "W", "yf_interval": "1wk", "yf_period": "10y"}
 }
-
 tf_sel = st.sidebar.selectbox("Temporalidad del Análisis:", list(timeframe_map.keys()), index=5)
 tv_tf_code = timeframe_map[tf_sel]["tv"]
 yf_interval = timeframe_map[tf_sel]["yf_interval"]
@@ -211,36 +237,8 @@ with st.sidebar.expander("🎯 SuperTrend & Oracle Oscillator", expanded=False):
     st_mult = st.number_input("Multiplicador SuperTrend", value=3.0, step=0.1)
     use_oracle = st.checkbox("Integrar Oracle Oscillator al Score", value=True)
 
-with st.sidebar.expander("➕ / ➖ Gestionar Activos Manuales", expanded=False):
-    tab_add, tab_del = st.tabs(["Agregar", "Eliminar"])
-    with tab_add:
-        n_ticker = st.text_input("Ticker Visible (ej: AAPL):")
-        n_name = st.text_input("Nombre de la Empresa:")
-        n_tv = st.text_input("Ticker TradingView (ej: NASDAQ:AAPL):")
-        n_yf = st.text_input("Ticker Yahoo Finance (ej: AAPL):")
-        n_cat = st.selectbox("Categoría:", ["Indices", "Sectores", "Internacional", "Mercado Argentino"])
-        if st.button("Guardar Activo"):
-            if n_ticker and n_tv and n_yf:
-                tick_clean = n_ticker.strip().upper()
-                st.session_state.activos_dict[tick_clean] = {
-                    "name": n_name.strip(), "tv": n_tv.strip().upper(), "yf": n_yf.strip().upper(), "cat": n_cat
-                }
-                st.session_state.listas_personalizadas["Lista de seguimiento"].append(tick_clean)
-                st.success(f"¡{tick_clean} agregado correctamente!")
-                st.rerun()
-    with tab_del:
-        b_ticker = st.selectbox("Activo a Borrar:", list(st.session_state.activos_dict.keys()))
-        if st.button("Borrar Activo"):
-            if len(st.session_state.activos_dict) > 1:
-                del st.session_state.activos_dict[b_ticker]
-                for l_name in st.session_state.listas_personalizadas:
-                    if b_ticker in st.session_state.listas_personalizadas[l_name]:
-                        st.session_state.listas_personalizadas[l_name].remove(b_ticker)
-                st.session_state.idx_activo = 0
-                st.rerun()
-
 # ==========================================
-# CÁLCULOS MATEMÁTICOS DE PINE SCRIPT
+# MOTOR MATEMÁTICO PINE SCRIPT
 # ==========================================
 @st.cache_data(ttl=60)
 def calcular_matriz_pine(symbol_yf, interval, period, 
@@ -255,7 +253,7 @@ def calcular_matriz_pine(symbol_yf, interval, period,
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
             
-        close, high, low, open_p = df['Close'], df['High'], df['Low'], df['Open']
+        close, high, low, open_p, volume = df['Close'], df['High'], df['Low'], df['Open'], df['Volume']
         
         ma1 = close.ewm(span=m1, adjust=False).mean()
         ma2 = close.ewm(span=m2, adjust=False).mean()
@@ -282,7 +280,6 @@ def calcular_matriz_pine(symbol_yf, interval, period,
         adx = dx.ewm(alpha=1/adx_l, adjust=False).mean()
         
         bb_basis = close.rolling(window=20).mean()
-        bb_dev = 2.0 * close.rolling(window=20).std()
         macd_line = close.ewm(span=8, adjust=False).mean() - close.ewm(span=m2, adjust=False).mean()
         signal_line = macd_line.ewm(span=14, adjust=False).mean()
         
@@ -307,6 +304,19 @@ def calcular_matriz_pine(symbol_yf, interval, period,
         ci = (hlc3 - esa) / (0.015 * d)
         ora_wt1 = ci.ewm(span=21, adjust=False).mean()
         ora_wt2 = ora_wt1.rolling(window=4).mean()
+
+        ret_c = close.pct_change()
+        vol_shift = volume.shift(1)
+        nvi = pd.Series(1000.0, index=df.index)
+        for i in range(1, len(df)):
+            if volume.iloc[i] < vol_shift.iloc[i]:
+                nvi.iloc[i] = nvi.iloc[i-1] + (ret_c.iloc[i] * nvi.iloc[i-1])
+            else:
+                nvi.iloc[i] = nvi.iloc[i-1]
+        nvi_ema = nvi.ewm(span=15, adjust=False).mean()
+        nvi_hi = nvi_ema.rolling(90).max()
+        nvi_lo = nvi_ema.rolling(90).min()
+        k_azul = np.where(nvi_hi != nvi_lo, (nvi - nvi_ema) * 100 / (nvi_hi - nvi_lo), 0)
         
         patron_nombre, patron_pts, desc_patron = "Sin patrón", 0, "-"
         if (close.iloc[-2] < open_p.iloc[-2]) and (close.iloc[-1] > open_p.iloc[-1]) and (close.iloc[-1] >= open_p.iloc[-2]):
@@ -320,6 +330,7 @@ def calcular_matriz_pine(symbol_yf, interval, period,
         wt1_l, wt2_l = float(ora_wt1.iloc[-1]), float(ora_wt2.iloc[-1])
         macd_l, sig_l = float(macd_line.iloc[-1]), float(signal_line.iloc[-1])
         bbm_l = float(bb_basis.iloc[-1])
+        k_azul_l = float(k_azul[-1])
         
         score = 0
         if use_mm5 and c_last > ma5_l: score += 10
@@ -336,6 +347,7 @@ def calcular_matriz_pine(symbol_yf, interval, period,
             if wt1_l > wt2_l: score += 10
             if wt1_l > 0: score += 5
             if wt1_l < 40.0: score += 5
+        if k_azul_l > 0: score += 5
         score += patron_pts
         
         is_trending = (not use_adx_filter) or (adx_l >= adx_t)
@@ -365,17 +377,16 @@ def calcular_matriz_pine(symbol_yf, interval, period,
         return None
 
 # ==========================================
-# LAYOUT PRINCIPAL (75% GRÁFICO / 25% WATCHLIST)
+# LAYOUT DUAL (75% GRÁFICO / 25% WATCHLIST)
 # ==========================================
 col_main, col_watchlist = st.columns([0.75, 0.25])
 
 curr_key = keys_list[st.session_state.idx_activo]
 curr_item = st.session_state.activos_dict[curr_key]
-
 tv_symbol = curr_item["tv"]
 yf_symbol = curr_item["yf"]
 
-# PANEL IZQUIERDO: GRÁFICO Y TABLA MATRICIAL
+# --- PANEL IZQUIERDO: GRÁFICO TV + MATRIZ DE SCORING ---
 with col_main:
     st.markdown(f"### 📊 {curr_key} - {curr_item['name']} ({curr_item['cat']})")
     
@@ -427,19 +438,14 @@ with col_main:
         t_ma4 = "ALCISTA" if res['precio'] > res['ma4'] else "BAJISTA"
         c_ma5 = "bg-green" if res['precio'] > res['ma5'] else "bg-red"
         t_ma5 = "ALCISTA" if res['precio'] > res['ma5'] else "BAJISTA"
-
         c_adx = "bg-green" if res['is_trending'] else "bg-red"
         c_reg = "bg-teal" if res['is_trending'] else "bg-orange"
         t_reg = "TENDENCIA" if res['is_trending'] else "RANGO LATERAL"
-
         c_ora = "bg-green" if res['wt1'] > res['wt2'] else "bg-red"
         t_ora = "COMPRA" if res['wt1'] > res['wt2'] else "VENTA"
-
         c_score = "bg-green" if res['score'] >= 75 else ("bg-red" if res['score'] <= 25 else "bg-orange")
         t_rsi = "SOBRECOMPRA" if res['rsi'] > rsi_ob_limit else ("SOBREVENTA" if res['rsi'] < rsi_os_limit else "NEUTRO")
-
         c_sig = "bg-green" if res['signal'] == "LONG" else ("bg-red" if res['signal'] == "SHORT" else "bg-dark")
-
         sl_str = f"${res['sl']:.2f}" if res['sl'] is not None else "N/A"
         tp_str = f"${res['tp']:.2f}" if res['tp'] is not None else "N/A"
 
@@ -513,69 +519,91 @@ with col_main:
         """
         st.markdown(matriz_html, unsafe_allow_html=True)
 
-# PANEL DERECHO: WATCHLIST NATIVA CON CONEXIÓN DIRECTA Y MOUSE CLICK
+# --- PANEL DERECHO: WATCHLIST CON DISEÑO TRADINGVIEW ---
 with col_watchlist:
     lista_sel = st.selectbox(
         "📌 Lista Activa:",
         options=list(st.session_state.listas_personalizadas.keys()),
         index=list(st.session_state.listas_personalizadas.keys()).index(st.session_state.lista_activa_sel)
     )
-
     if lista_sel != st.session_state.lista_activa_sel:
         st.session_state.lista_activa_sel = lista_sel
         st.session_state.idx_activo = 0
         st.rerun()
 
-    with st.popover("⚙️ Opciones de Lista"):
-        st.markdown("### 📋 Gestión de Lista")
-        st.button("🔔 Añadir alerta a la lista...")
-        st.button("📑 Hacer una copia...")
-        st.button("✏️ Cambiar el nombre")
-        st.button("➕ Añadir sección")
-        st.button("🗑️ Borrar lista")
-        st.divider()
-        st.button("✨ Crear nueva lista...")
-        st.button("📂 Cargar lista...")
-
-    col_up, col_dn = st.columns(2)
-    with col_up:
-        if st.button("⬆️ Anterior", use_container_width=True):
-            st.session_state.idx_activo = (st.session_state.idx_activo - 1) % len(keys_list)
-            st.rerun()
-    with col_dn:
-        if st.button("⬇️ Siguiente", use_container_width=True):
-            st.session_state.idx_activo = (st.session_state.idx_activo + 1) % len(keys_list)
-            st.rerun()
-
-    # SELECTOR DIRECTO QUE ACTUALIZA EL ESTADO AL CLICKEAR
-    selected_ticker = st.radio(
-        "Seleccionar Activo con el Mouse:",
+    # Selector de activo
+    selected_ticker = st.selectbox(
+        "🔍 Seleccionar Activo:",
         options=keys_list,
-        index=st.session_state.idx_activo,
-        key="radio_watchlist_sync"
+        index=st.session_state.idx_activo
     )
-
     if keys_list.index(selected_ticker) != st.session_state.idx_activo:
         st.session_state.idx_activo = keys_list.index(selected_ticker)
         st.rerun()
 
-    # Tarjeta de Detalle del Activo Seleccionado
+    # RENDER DE TABLA ESTILO TRADINGVIEW (Símbolo | Última | Cbo | Cambio %)
+    rows_html = ""
+    for k in keys_list:
+        m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0})
+        is_selected = (k == curr_key)
+        sel_class = "selected" if is_selected else ""
+        
+        cbo_class = "val-up" if m["cbo"] >= 0 else "val-down"
+        sign = "+" if m["cbo"] >= 0 else ""
+        flag_class = "flag-red" if k in ["UBER", "MCD", "TSLA", "GGAL"] else "flag-blue"
+        
+        rows_html += f"""
+        <tr class="tv-wl-row {sel_class}">
+            <td class="tv-wl-td tv-wl-td-sym">
+                <span class="tv-flag {flag_class}"></span> {k}
+            </td>
+            <td class="tv-wl-td">${m['last']:.2f}</td>
+            <td class="tv-wl-td {cbo_class}">{sign}{m['cbo']:.2f}</td>
+            <td class="tv-wl-td {cbo_class}">{sign}{m['cbo_pct']:.2f}%</td>
+        </tr>
+        """
+
+    wl_table_html = f"""
+    <div class="tv-wl-container">
+        <table class="tv-wl-table">
+            <thead>
+                <tr>
+                    <th>Símbolo</th>
+                    <th>Última</th>
+                    <th>Cbo</th>
+                    <th>Cambio %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_html}
+            </tbody>
+        </table>
+    </div>
+    """
+    st.markdown(wl_table_html, unsafe_allow_html=True)
+
+    # TARJETA INFERIOR DE DETALLE DE COMPAÑÍA
     curr_m = market_data.get(curr_key, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0, "vol": 0.0})
-    change_style = "tv-detail-change-up" if curr_m["cbo"] >= 0 else "tv-detail-change-down"
+    change_style = "val-up" if curr_m["cbo"] >= 0 else "val-down"
     sign_m = "+" if curr_m["cbo"] >= 0 else ""
     curr_logo = get_logo_url(curr_item["yf"])
 
     st.markdown(f"""
         <div class="tv-detail-card">
             <div class="tv-detail-header">
-                <img src="{curr_logo}" class="tv-detail-logo" onerror="this.src='https://via.placeholder.com/28/2a2e39/ffffff?text={curr_key[0]}';"/>
+                <img src="{curr_logo}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" onerror="this.src='https://via.placeholder.com/28/2a2e39/ffffff?text={curr_key[0]}';"/>
                 <div>
                     <div class="tv-detail-title">{curr_key}</div>
                     <div class="tv-detail-sub">{curr_item['name']} • {curr_item['cat']}</div>
                 </div>
             </div>
             <div class="tv-detail-price">${curr_m['last']:.2f} USD</div>
-            <div class="{change_style}">{sign_m}{curr_m['cbo']:.2f} ({sign_m}{curr_m['cbo_pct']:.2f}%)</div>
-            <div class="tv-detail-meta">Volumen Medio (30d): {curr_m['vol']/1e6:.2f}M</div>
+            <div class="{change_style}" style="font-weight:bold; font-size:13px;">
+                {sign_m}{curr_m['cbo']:.2f} ({sign_m}{curr_m['cbo_pct']:.2f}%)
+            </div>
+            <div class="tv-detail-meta">
+                <span>Volumen Promedio:</span>
+                <span style="color:#ffffff;">{curr_m['vol']/1e6:.2f}M</span>
+            </div>
         </div>
     """, unsafe_allow_html=True)
