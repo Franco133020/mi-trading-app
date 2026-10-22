@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS generales y réplica visual estilo TradingView
+# Estilos CSS generales
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #d1d4dc; }
@@ -61,7 +61,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Helper para obtener el LOGO OFICIAL ORIGINAL desde CDN de TradingView / Parqet
+# Helper para obtener el LOGO OFICIAL ORIGINAL desde CDN
 def get_logo_url(ticker_key):
     clean = ticker_key.replace("USD", "").replace("M", "").replace("2M", "")
     if clean in ["US500", "MERV"]:
@@ -71,7 +71,7 @@ def get_logo_url(ticker_key):
     return f"https://assets.parqet.com/logos/symbol/{clean}?format=png"
 
 # ==========================================
-# BASE COMPLETA DE ACTIVOS SOLICITADOS
+# BASE COMPLETA DE ACTIVOS
 # ==========================================
 if "activos_dict" not in st.session_state:
     st.session_state.activos_dict = {
@@ -162,7 +162,7 @@ if "idx_activo" not in st.session_state or st.session_state.idx_activo >= len(ke
     st.session_state.idx_activo = 0
 
 # ==========================================
-# DATOS DE MERCADO EN TIEMPO REAL (YFINANCE)
+# DATOS DE MERCADO EN TIEMPO REAL
 # ==========================================
 @st.cache_data(ttl=30)
 def obtener_cotizaciones_watchlist(activos_dict):
@@ -395,7 +395,6 @@ yf_symbol = curr_item["yf"]
 with col_main:
     st.markdown(f"### 📊 {curr_key} - {curr_item['name']} ({curr_item['cat']})")
     
-    # Widget embebible oficial de TradingView (previene error de conexión)
     template_tv = """
     <div class="tradingview-widget-container" style="height:100%;width:100%">
       <div id="tradingview_chart" style="height:500px;width:100%"></div>
@@ -525,7 +524,7 @@ with col_main:
         """
         st.markdown(matriz_html, unsafe_allow_html=True)
 
-# --- PANEL DERECHO: WATCHLIST SINCRONIZADA E INTERACTIVA ---
+# --- PANEL DERECHO: WATCHLIST CON COLUMNA DE LOGOS VISIBLES ---
 with col_watchlist:
     lista_sel = st.selectbox(
         "📌 Lista Activa:",
@@ -548,12 +547,13 @@ with col_watchlist:
         st.session_state.idx_activo = selected_idx
         st.rerun()
 
-    # DATAFRAME DE SEGUIMIENTO CON ESTILOS
+    # DATAFRAME CON COLUMNA DE LOGOS OFICIALES FORMATO IMAGEN
     wl_data = []
     for k in keys_list:
         m = market_data.get(k, {"last": 0.0, "cbo": 0.0, "cbo_pct": 0.0})
         sign = "+" if m["cbo"] >= 0 else ""
         wl_data.append({
+            "Logo": get_logo_url(k),
             "Símbolo": k,
             "Última": f"${m['last']:.2f}",
             "Cbo": f"{sign}{m['cbo']:.2f}",
@@ -571,14 +571,20 @@ with col_watchlist:
 
     styled_df = df_wl.style.map(color_variacion, subset=["Cbo", "Cambio %"])
 
-    # SELECCIÓN INTERACTIVA MEDIANTE CLIC EN FILAS
+    # RENDER CON IMAGE COLUMN DE STREAMLIT
     event = st.dataframe(
         styled_df,
         use_container_width=True,
         height=360,
         hide_index=True,
         on_select="rerun",
-        selection_mode="single-row"
+        selection_mode="single-row",
+        column_config={
+            "Logo": st.column_config.ImageColumn(
+                label="",
+                width="small"
+            )
+        }
     )
 
     if event and "rows" in event.selection and len(event.selection["rows"]) > 0:
